@@ -1,0 +1,65 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: feature-flag-postgres
+    environment:
+      POSTGRES_DB: feature-flag
+      POSTGRES_USER: feature-flag
+      POSTGRES_PASSWORD: feature-flag123
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - feature-flag-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U feature-flag -d feature-flag"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
+  app:
+    build: .
+    container_name: feature-flag-app
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/feature-flag?currentSchema=public
+      SPRING_DATASOURCE_USERNAME: feature-flag
+      SPRING_DATASOURCE_PASSWORD: feature-flag123
+      SERVER_PORT: 8080
+    ports:
+      - "8080:8080"
+    networks:
+      - feature-flag-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: feature-flag-pgadmin
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@featureflag.com
+      PGADMIN_DEFAULT_PASSWORD: admin123
+    ports:
+      - "5050:80"
+    depends_on:
+      - postgres
+    networks:
+      - feature-flag-network
+    profiles:
+      - tools
+
+volumes:
+  postgres_data:
+
+networks:
+  feature-flag-network:

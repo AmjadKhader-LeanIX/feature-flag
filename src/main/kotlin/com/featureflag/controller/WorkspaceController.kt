@@ -1,0 +1,53 @@
+package com.featureflag.controller
+
+import com.featureflag.dto.UpdateWorkspaceRequest
+import com.featureflag.dto.WorkspaceDto
+import com.featureflag.service.WorkspaceService
+import jakarta.validation.Valid
+import org.springframework.http.HttpStatus
+import org.springframework.http.ResponseEntity
+import org.springframework.web.bind.annotation.*
+import java.util.*
+
+@RestController
+@RequestMapping("/api/workspaces")
+class WorkspaceController(
+    private val workspaceService: WorkspaceService
+) {
+
+    @GetMapping
+    fun getAllWorkspaces(): ResponseEntity<List<WorkspaceDto>> {
+        val workspaces = workspaceService.getAllWorkspaces()
+        return ResponseEntity.ok(workspaces)
+    }
+
+    @GetMapping("/{id}")
+    fun getWorkspaceById(@PathVariable id: UUID): ResponseEntity<WorkspaceDto> {
+        val workspace = workspaceService.getWorkspaceById(id)
+        return ResponseEntity.ok(workspace)
+
+
+
+        @PutMapping("/{id}")
+        fun updateWorkspace(
+            @PathVariable id: UUID,
+            @Valid @RequestBody request: UpdateWorkspaceRequest
+        ): ResponseEntity<WorkspaceDto> {
+            val workspace = workspaceService.updateWorkspace(id, request)
+            return ResponseEntity.ok(workspace)
+        }
+
+        @DeleteMapping("/{id}")
+        fun deleteWorkspace(@PathVariable id: UUID): ResponseEntity<Void> {
+            workspaceService.deleteWorkspace(id)
+            return ResponseEntity.noContent().build()
+        }
+
+        @GetMapping("/search")
+        fun searchWorkspaces(@RequestParam name: String): ResponseEntity<List<WorkspaceDto>> {
+            val workspaces = workspaceService.searchWorkspaces(name)
+            return ResponseEntity.ok(workspaces)
+        }
+
+    }
+}
