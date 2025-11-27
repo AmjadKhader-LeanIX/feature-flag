@@ -263,8 +263,9 @@ const FeatureFlagFormComponent = {
                     type="text"
                     required
                     placeholder="Enter feature flag name"
+                    :disabled="isEdit"
                 />
-            </div>
+
             <div class="form-group">
                 <label for="flag-description">Description</label>
                 <textarea
@@ -283,7 +284,7 @@ const FeatureFlagFormComponent = {
                     placeholder="Enter team name"
                 />
             </div>
-            <div class="form-group">
+            <div v-if="isEdit" class="form-group">
                 <label for="flag-rollout">Rollout Percentage</label>
                 <div class="range-input">
                     <input
@@ -340,7 +341,7 @@ const FeatureFlagFormComponent = {
                 name: this.form.name,
                 description: this.form.description || null,
                 team: this.form.team,
-                rolloutPercentage: this.form.rolloutPercentage
+                rolloutPercentage: this.isEdit ? this.form.rolloutPercentage : 0
             };
             this.$emit('submit', data);
         },
@@ -1218,10 +1219,6 @@ const App = {
                                             </div>
                                         </div>
                                         <div class="grid-actions">
-                                            <button class="btn btn-sm btn-info" @click="showEvaluationModal(flag.id)">
-                                                <i class="fas fa-check-circle"></i>
-                                                Evaluate
-                                            </button>
                                             <button class="btn btn-sm btn-secondary" @click="editFeatureFlag(flag)">
                                                 <i class="fas fa-edit"></i>
                                                 Edit
@@ -1230,7 +1227,7 @@ const App = {
                                                 <i class="fas fa-trash"></i>
                                                 Delete
                                             </button>
-                                        </div>
+
                                     </div>
                                 </div>
                             </div>

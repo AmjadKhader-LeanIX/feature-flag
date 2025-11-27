@@ -23,10 +23,9 @@ data class CreateFeatureFlagRequest(
     val description: String?,
     @field:NotBlank(message = "Team is required")
     val team: String,
-    @field:NotNull(message = "Rollout percentage is required")
     @field:Min(value = 0, message = "Rollout percentage must be between 0 and 100")
     @field:Max(value = 100, message = "Rollout percentage must be between 0 and 100")
-    val rolloutPercentage: Int
+    val rolloutPercentage: Int = 0
 )
 
 data class UpdateFeatureFlagRequest(
@@ -44,5 +43,5 @@ data class UpdateFeatureFlagRequest(
 data class FeatureFlagEvaluationResponse(
     val enabled: Boolean,
     val reason: String
-)
 
+)
