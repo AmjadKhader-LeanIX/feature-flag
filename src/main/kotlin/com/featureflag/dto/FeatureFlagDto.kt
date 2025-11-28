@@ -39,9 +39,3 @@ data class UpdateFeatureFlagRequest(
     @field:Max(value = 100, message = "Rollout percentage must be between 0 and 100")
     val rolloutPercentage: Int
 )
-
-data class FeatureFlagEvaluationResponse(
-    val enabled: Boolean,
-    val reason: String
-
-)

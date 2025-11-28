@@ -48,7 +48,6 @@ A complete feature flag management service built with Kotlin, Spring Boot, and P
 - `DELETE /api/feature-flags/{id}` - Delete feature flag
 - `GET /api/feature-flags/workspace/{workspaceId}` - Get feature flags by workspace
 - `GET /api/feature-flags/search?name={name}` - Search feature flags
-- `GET /api/feature-flags/{id}/check?customerId={customerId}` - **Evaluate feature flag**
 
 #### Customer Feature Flags
 - `GET /api/customer-feature-flags` - List all customer overrides

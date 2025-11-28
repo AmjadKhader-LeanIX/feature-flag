@@ -2,11 +2,9 @@ package com.featureflag.service
 
 import com.featureflag.dto.CreateFeatureFlagRequest
 import com.featureflag.dto.FeatureFlagDto
-import com.featureflag.dto.FeatureFlagEvaluationResponse
 import com.featureflag.dto.UpdateFeatureFlagRequest
 import com.featureflag.entity.FeatureFlag
 import com.featureflag.entity.WorkspaceFeatureFlag
-import com.featureflag.exception.FeatureFlagEvaluationException
 import com.featureflag.exception.ResourceNotFoundException
 import com.featureflag.repository.FeatureFlagRepository
 import com.featureflag.repository.WorkspaceFeatureFlagRepository
@@ -46,6 +44,7 @@ class FeatureFlagService(
         return workspaceFeatureFlags.map { it.featureFlag.toDto() }
     }
 
+    @Transactional
     fun createFeatureFlag(request: CreateFeatureFlagRequest): FeatureFlagDto {
         if (featureFlagRepository.existsByTeamAndName(request.team, request.name)) {
             throw IllegalArgumentException("Feature flag with name '${request.name}' already exists in this team")
@@ -88,6 +87,7 @@ class FeatureFlagService(
         return savedFeatureFlag.toDto()
     }
 
+    @Transactional
     fun deleteFeatureFlag(id: UUID) {
         if (!featureFlagRepository.existsById(id)) {
             throw ResourceNotFoundException("Feature flag not found with id: $id")
@@ -97,37 +97,6 @@ class FeatureFlagService(
 
     fun searchFeatureFlags(name: String): List<FeatureFlagDto> {
         return featureFlagRepository.findByNameContainingIgnoreCase(name).map { it.toDto() }
-    }
-
-    @Transactional(readOnly = true)
-    fun evaluateFeatureFlag(featureFlagId: UUID, customerId: UUID): FeatureFlagEvaluationResponse {
-        try {
-            val featureFlag = featureFlagRepository.findById(featureFlagId)
-                .orElseThrow { ResourceNotFoundException("Feature flag not found with id: $featureFlagId") }
-
-            // Use rollout percentage evaluation
-            val isEnabled = evaluateRolloutPercentage(customerId, featureFlag.rolloutPercentage)
-            return FeatureFlagEvaluationResponse(
-                enabled = isEnabled,
-                reason = if (isEnabled) "Enabled by rollout percentage (${featureFlag.rolloutPercentage}%)"
-                else "Disabled by rollout percentage (${featureFlag.rolloutPercentage}%)"
-            )
-
-        } catch (ex: ResourceNotFoundException) {
-            throw ex
-        } catch (ex: Exception) {
-            throw FeatureFlagEvaluationException("Failed to evaluate feature flag: ${ex.message}")
-        }
-    }
-
-    private fun evaluateRolloutPercentage(customerId: UUID, rolloutPercentage: Int): Boolean {
-        if (rolloutPercentage == 0) return false
-        if (rolloutPercentage == 100) return true
-
-        // Use consistent hash-based evaluation
-        val hash = abs(customerId.hashCode())
-        val bucket = hash % 100
-        return bucket < rolloutPercentage
     }
 
     private fun enableFeatureFlagByPercentage(

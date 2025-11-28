@@ -67,13 +67,4 @@ class FeatureFlagController(
         val featureFlags = featureFlagService.searchFeatureFlags(name)
         return ResponseEntity.ok(featureFlags)
     }
-
-    @GetMapping("/{id}/check")
-    fun evaluateFeatureFlag(
-        @PathVariable id: UUID,
-        @RequestParam customerId: UUID
-    ): ResponseEntity<FeatureFlagEvaluationResponse> {
-        val evaluation = featureFlagService.evaluateFeatureFlag(id, customerId)
-        return ResponseEntity.ok(evaluation)
-    }
 }
