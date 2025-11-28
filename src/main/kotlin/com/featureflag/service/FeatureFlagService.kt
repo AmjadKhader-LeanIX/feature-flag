@@ -15,7 +15,6 @@ import java.util.*
 import kotlin.math.abs
 
 @Service
-@Transactional
 class FeatureFlagService(
     private val featureFlagRepository: FeatureFlagRepository,
     private val workspaceRepository: WorkspaceRepository,
@@ -103,6 +102,7 @@ class FeatureFlagService(
         featureFlag: FeatureFlag,
         rolloutPercentage: Int
     ) {
+        // todo: This logic needs to be improved where it should not change the "enabled" value for the workspace that has it true expect in the cases where we are decreasing the rollout percentage.
         val allWorkspaceFeatureFlags = workspaceFeatureFlagRepository.findByFeatureFlag(featureFlag)
 
         // First, disable feature flag for all existing workspace-feature flag associations

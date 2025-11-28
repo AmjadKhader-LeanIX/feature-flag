@@ -26,7 +26,6 @@ class WorkspaceServiceTest {
 
     @Test
     fun `should get all workspaces`() {
-        // Given
         val workspace1 = Workspace(
             id = UUID.randomUUID(),
             name = "Workspace 1",
@@ -43,10 +42,8 @@ class WorkspaceServiceTest {
         )
         every { workspaceRepository.findAll() } returns listOf(workspace1, workspace2)
 
-        // When
         val result = workspaceService.getAllWorkspaces()
 
-        // Then
         assertEquals(2, result.size)
         assertEquals("Workspace 1", result[0].name)
         assertEquals("Workspace 2", result[1].name)
@@ -55,7 +52,6 @@ class WorkspaceServiceTest {
 
     @Test
     fun `should get workspace by id`() {
-        // Given
         val workspaceId = UUID.randomUUID()
         val workspace = Workspace(
             id = workspaceId,
@@ -66,10 +62,8 @@ class WorkspaceServiceTest {
         )
         every { workspaceRepository.findById(workspaceId) } returns Optional.of(workspace)
 
-        // When
         val result = workspaceService.getWorkspaceById(workspaceId)
 
-        // Then
         assertEquals(workspaceId, result.id)
         assertEquals("Test Workspace", result.name)
         verify { workspaceRepository.findById(workspaceId) }
@@ -77,14 +71,72 @@ class WorkspaceServiceTest {
 
     @Test
     fun `should throw exception when workspace not found`() {
-        // Given
         val workspaceId = UUID.randomUUID()
         every { workspaceRepository.findById(workspaceId) } returns Optional.empty()
 
-        // When & Then
         assertThrows<ResourceNotFoundException> {
             workspaceService.getWorkspaceById(workspaceId)
         }
+        verify { workspaceRepository.findById(workspaceId) }
+    }
+
+    @Test
+    fun `should return empty list when no workspaces exist`() {
+        every { workspaceRepository.findAll() } returns emptyList()
+
+        val result = workspaceService.getAllWorkspaces()
+
+        assertEquals(0, result.size)
+        verify { workspaceRepository.findAll() }
+    }
+
+    @Test
+    fun `should handle workspace with null description`() {
+        val workspaceId = UUID.randomUUID()
+        val workspace = Workspace(
+            id = workspaceId,
+            name = "Test Workspace",
+            type = "test",
+            createdAt = LocalDateTime.now(),
+            updatedAt = LocalDateTime.now()
+        )
+        every { workspaceRepository.findById(workspaceId) } returns Optional.of(workspace)
+
+        val result = workspaceService.getWorkspaceById(workspaceId)
+
+        assertEquals(workspaceId, result.id)
+        assertEquals("Test Workspace", result.name)
+        verify { workspaceRepository.findById(workspaceId) }
+    }
+
+    @Test
+    fun `should handle workspace with special characters in name`() {
+        val workspaceId = UUID.randomUUID()
+        val specialName = "Test-Workspace_123 & Co!"
+        val workspace = Workspace(
+            id = workspaceId,
+            name = specialName,
+            type = "test",
+            createdAt = LocalDateTime.now(),
+            updatedAt = LocalDateTime.now()
+        )
+        every { workspaceRepository.findById(workspaceId) } returns Optional.of(workspace)
+
+        val result = workspaceService.getWorkspaceById(workspaceId)
+
+        assertEquals(specialName, result.name)
+        verify { workspaceRepository.findById(workspaceId) }
+    }
+
+    @Test
+    fun `should verify error message content for not found exception`() {
+        val workspaceId = UUID.randomUUID()
+        every { workspaceRepository.findById(workspaceId) } returns Optional.empty()
+
+        val exception = assertThrows<ResourceNotFoundException> {
+            workspaceService.getWorkspaceById(workspaceId)
+        }
+        assertEquals("Workspace not found with id: $workspaceId", exception.message)
         verify { workspaceRepository.findById(workspaceId) }
     }
 }
