@@ -37,5 +37,5 @@ data class UpdateFeatureFlagRequest(
     @field:NotNull(message = "Rollout percentage is required")
     @field:Min(value = 0, message = "Rollout percentage must be between 0 and 100")
     @field:Max(value = 100, message = "Rollout percentage must be between 0 and 100")
-    val rolloutPercentage: Int
+    var rolloutPercentage: Int
 )

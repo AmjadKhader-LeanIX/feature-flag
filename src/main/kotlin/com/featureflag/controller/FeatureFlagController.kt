@@ -2,7 +2,6 @@ package com.featureflag.controller
 
 import com.featureflag.dto.CreateFeatureFlagRequest
 import com.featureflag.dto.FeatureFlagDto
-import com.featureflag.dto.FeatureFlagEvaluationResponse
 import com.featureflag.dto.UpdateFeatureFlagRequest
 import com.featureflag.service.FeatureFlagService
 import jakarta.validation.Valid
