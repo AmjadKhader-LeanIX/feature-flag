@@ -1,4 +1,4 @@
-const { createApp, ref, computed, reactive, onMounted, nextTick } = Vue;
+const {createApp, ref, computed, reactive, onMounted, nextTick} = Vue;
 
 // API Service
 const apiService = {
@@ -72,64 +72,6 @@ const apiService = {
             method: 'DELETE'
         });
     },
-
-    evaluateFeatureFlag(id, customerId) {
-        return this.request(`/feature-flags/${id}/check?customerId=${customerId}`);
-    },
-
-    // User API
-    getUsers() {
-        return this.request('/users');
-    },
-
-    createUser(data) {
-        return this.request('/users', {
-            method: 'POST',
-            data
-        });
-    },
-
-    updateUser(id, data) {
-        return this.request(`/users/${id}`, {
-            method: 'PUT',
-            data
-        });
-    },
-
-    deleteUser(id) {
-        return this.request(`/users/${id}`, {
-            method: 'DELETE'
-        });
-    },
-
-    // Customer Feature Flag API
-    getCustomerFeatureFlags() {
-        return this.request('/customer-feature-flags');
-    },
-
-    createCustomerFeatureFlag(data) {
-        return this.request('/customer-feature-flags', {
-            method: 'POST',
-            data
-        });
-    },
-
-    updateCustomerFeatureFlag(id, data) {
-        return this.request(`/customer-feature-flags/${id}`, {
-            method: 'PUT',
-            data
-        });
-    },
-
-    deleteCustomerFeatureFlag(id) {
-        return this.request(`/customer-feature-flags/${id}`, {
-            method: 'DELETE'
-        });
-    },
-
-    getWorkspaceCustomers() {
-        return this.request('/customer-feature-flags/workspace-customers');
-    }
 };
 
 // Toast Component
@@ -594,37 +536,27 @@ const App = {
         const loading = reactive({
             workspaces: false,
             featureFlags: false,
-            users: false,
-            customerFeatureFlags: false
         });
 
         // Data stores
         const workspaces = ref([]);
         const featureFlags = ref([]);
-        const users = ref([]);
-        const customerFeatureFlags = ref([]);
-        const workspaceCustomers = ref([]);
 
         // Search/filter states
         const searchTerms = reactive({
             workspace: '',
             featureFlag: '',
-            customer: ''
         });
 
         const filters = reactive({
             workspaceId: '',
             userWorkspaceId: '',
-            userIsActive: '',
-            customerWorkspaceId: ''
         });
 
         // Modal states
         const modals = reactive({
             workspace: false,
             featureFlag: false,
-            user: false,
-            customerFeatureFlag: false,
             evaluation: false
         });
 
@@ -632,8 +564,6 @@ const App = {
         const editingItems = reactive({
             workspace: null,
             featureFlag: null,
-            user: null,
-            customerFeatureFlag: null,
             evaluationFlagId: null
         });
 
@@ -648,7 +578,6 @@ const App = {
         const dashboardStats = computed(() => ({
             workspaceCount: workspaces.value.length,
             featureFlagCount: featureFlags.value.length,
-            userCount: users.value.length,
             activeFlagsCount: featureFlags.value.filter(flag => flag.rolloutPercentage > 0).length
         }));
 
@@ -661,11 +590,6 @@ const App = {
             {
                 icon: 'fas fa-flag',
                 title: `${dashboardStats.value.featureFlagCount} feature flags created`,
-                time: 'Current status'
-            },
-            {
-                icon: 'fas fa-users',
-                title: `${dashboardStats.value.userCount} users registered`,
                 time: 'Current status'
             }
         ]);
@@ -692,23 +616,6 @@ const App = {
             });
         });
 
-        const filteredUsers = computed(() => {
-            return users.value.filter(user => {
-                const matchesWorkspace = !filters.userWorkspaceId || user.workspaceId === filters.userWorkspaceId;
-                const matchesActive = filters.userIsActive === '' || user.isActive === (filters.userIsActive === 'true');
-                return matchesWorkspace && matchesActive;
-            });
-        });
-
-        const filteredCustomerFeatureFlags = computed(() => {
-            return customerFeatureFlags.value.filter(flag => {
-                const matchesWorkspace = !filters.customerWorkspaceId || flag.workspaceId === filters.customerWorkspaceId;
-                const matchesSearch = !searchTerms.customer ||
-                    flag.customerId.toLowerCase().includes(searchTerms.customer.toLowerCase());
-                return matchesWorkspace && matchesSearch;
-            });
-        });
-
         // Methods
         const showToast = (message, type = 'info') => {
             toast.message = message;
@@ -727,7 +634,7 @@ const App = {
             currentTab.value = tabId;
 
             // Load data for the active tab
-            switch(tabId) {
+            switch (tabId) {
                 case 'dashboard':
                     loadDashboardData();
                     break;
@@ -736,12 +643,6 @@ const App = {
                     break;
                 case 'feature-flags':
                     loadFeatureFlags();
-                    break;
-                case 'users':
-                    loadUsers();
-                    break;
-                case 'customers':
-                    loadCustomerFeatureFlags();
                     break;
             }
         };
@@ -769,42 +670,10 @@ const App = {
             }
         };
 
-        const loadUsers = async () => {
-            try {
-                loading.users = true;
-                users.value = await apiService.getUsers();
-            } catch (error) {
-                showToast(error.message, 'error');
-            } finally {
-                loading.users = false;
-            }
-        };
-
-        const loadCustomerFeatureFlags = async () => {
-            try {
-                loading.customerFeatureFlags = true;
-                customerFeatureFlags.value = await apiService.getCustomerFeatureFlags();
-            } catch (error) {
-                showToast(error.message, 'error');
-            } finally {
-                loading.customerFeatureFlags = false;
-            }
-        };
-
-        const loadWorkspaceCustomers = async () => {
-            try {
-                workspaceCustomers.value = await apiService.getWorkspaceCustomers();
-            } catch (error) {
-                console.error('Failed to load workspace customers:', error);
-            }
-        };
-
         const loadDashboardData = async () => {
             await Promise.all([
                 loadWorkspaces(),
                 loadFeatureFlags(),
-                loadUsers(),
-                loadCustomerFeatureFlags()
             ]);
         };
 
@@ -899,91 +768,6 @@ const App = {
             modals.evaluation = true;
         };
 
-        // CRUD methods for users
-        const createUser = () => {
-            editingItems.user = null;
-            modals.user = true;
-        };
-
-        const editUser = (user) => {
-            editingItems.user = user;
-            modals.user = true;
-        };
-
-        const submitUser = async (data) => {
-            try {
-                if (editingItems.user) {
-                    await apiService.updateUser(editingItems.user.id, data);
-                    showToast('User updated successfully', 'success');
-                } else {
-                    await apiService.createUser(data);
-                    showToast('User created successfully', 'success');
-                }
-                modals.user = false;
-                await loadUsers();
-                if (currentTab.value === 'dashboard') await loadDashboardData();
-            } catch (error) {
-                showToast(error.message, 'error');
-            }
-        };
-
-        const deleteUser = async (user) => {
-            const identifier = user.email || 'User';
-            if (!confirm(`Are you sure you want to delete user "${identifier}"?`)) {
-                return;
-            }
-
-            try {
-                await apiService.deleteUser(user.id);
-                showToast('User deleted successfully', 'success');
-                await loadUsers();
-                if (currentTab.value === 'dashboard') await loadDashboardData();
-            } catch (error) {
-                showToast(error.message, 'error');
-            }
-        };
-
-        // CRUD methods for customer feature flags
-        const createCustomerFeatureFlag = () => {
-            editingItems.customerFeatureFlag = null;
-            modals.customerFeatureFlag = true;
-        };
-
-        const editCustomerFeatureFlag = (flag) => {
-            editingItems.customerFeatureFlag = flag;
-            modals.customerFeatureFlag = true;
-        };
-
-        const submitCustomerFeatureFlag = async (data) => {
-            try {
-                if (editingItems.customerFeatureFlag) {
-                    await apiService.updateCustomerFeatureFlag(editingItems.customerFeatureFlag.id, data);
-                    showToast('Customer feature flag updated successfully', 'success');
-                } else {
-                    await apiService.createCustomerFeatureFlag(data);
-                    showToast('Customer feature flag created successfully', 'success');
-                }
-                modals.customerFeatureFlag = false;
-                await loadCustomerFeatureFlags();
-            } catch (error) {
-                showToast(error.message, 'error');
-            }
-        };
-
-        const deleteCustomerFeatureFlag = async (flag) => {
-            if (!confirm(`Are you sure you want to delete the feature flag for customer "${flag.customerId}"?`)) {
-                return;
-            }
-
-            try {
-                await apiService.deleteCustomerFeatureFlag(flag.id);
-                showToast('Customer feature flag deleted successfully', 'success');
-                await loadCustomerFeatureFlags();
-            } catch (error) {
-                showToast(error.message, 'error');
-            }
-        };
-
         // Utility methods
         const formatDate = (dateString) => {
             return new Date(dateString).toLocaleDateString();
@@ -1002,7 +786,6 @@ const App = {
         // Lifecycle
         onMounted(() => {
             loadDashboardData();
-            loadWorkspaceCustomers();
         });
 
         return {
@@ -1011,9 +794,6 @@ const App = {
             loading,
             workspaces,
             featureFlags,
-            users,
-            customerFeatureFlags,
-            workspaceCustomers,
             searchTerms,
             filters,
             modals,
@@ -1025,8 +805,6 @@ const App = {
             recentActivity,
             filteredWorkspaces,
             filteredFeatureFlags,
-            filteredUsers,
-            filteredCustomerFeatureFlags,
 
             // Methods
             showToast,
@@ -1045,18 +823,6 @@ const App = {
             submitFeatureFlag,
             deleteFeatureFlag,
             showEvaluationModal,
-
-            // User methods
-            createUser,
-            editUser,
-            submitUser,
-            deleteUser,
-
-            // Customer feature flag methods
-            createCustomerFeatureFlag,
-            editCustomerFeatureFlag,
-            submitCustomerFeatureFlag,
-            deleteCustomerFeatureFlag,
 
             // Utility methods
             formatDate,
@@ -1124,15 +890,6 @@ const App = {
                                 <div class="stat-content">
                                     <div class="stat-number">{{ dashboardStats.featureFlagCount }}</div>
                                     <div class="stat-label">Feature Flags</div>
-                                </div>
-                            </div>
-                            <div class="stat-card">
-                                <div class="stat-icon">
-                                    <i class="fas fa-users"></i>
-                                </div>
-                                <div class="stat-content">
-                                    <div class="stat-number">{{ dashboardStats.userCount }}</div>
-                                    <div class="stat-label">Users</div>
                                 </div>
                             </div>
                             <div class="stat-card">

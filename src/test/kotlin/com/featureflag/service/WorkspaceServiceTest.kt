@@ -1,14 +1,14 @@
 package com.featureflag.service
 
 import com.featureflag.dto.CreateWorkspaceRequest
-import com.featureflag.dto.UpdateWorkspaceRequest
 import com.featureflag.entity.Workspace
 import com.featureflag.exception.ResourceNotFoundException
 import com.featureflag.repository.WorkspaceRepository
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.verify
-import org.junit.jupiter.api.Assertions.*
+import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertNotNull
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows

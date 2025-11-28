@@ -74,7 +74,5 @@ class WorkspaceService(
             createdAt = this.createdAt,
             updatedAt = this.updatedAt
         )
-
-
-}
     }
+}

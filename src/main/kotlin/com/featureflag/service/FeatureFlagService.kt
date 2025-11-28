@@ -9,8 +9,8 @@ import com.featureflag.entity.WorkspaceFeatureFlag
 import com.featureflag.exception.FeatureFlagEvaluationException
 import com.featureflag.exception.ResourceNotFoundException
 import com.featureflag.repository.FeatureFlagRepository
-import com.featureflag.repository.WorkspaceRepository
 import com.featureflag.repository.WorkspaceFeatureFlagRepository
+import com.featureflag.repository.WorkspaceRepository
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import java.util.*
@@ -42,7 +42,7 @@ class FeatureFlagService(
         val workspace = workspaceRepository.findById(workspaceId)
             .orElseThrow { ResourceNotFoundException("Workspace not found with id: $workspaceId") }
 
-        val workspaceFeatureFlags = workspaceFeatureFlagRepository.findByWorkspace(workspace)
+        val workspaceFeatureFlags = workspaceFeatureFlagRepository.findByWorkspaceId(workspace.id!!)
         return workspaceFeatureFlags.map { it.featureFlag.toDto() }
     }
 
@@ -59,29 +59,19 @@ class FeatureFlagService(
         )
         val savedFeatureFlag = featureFlagRepository.save(featureFlag)
 
-        // Step 1: Get all workspaces and create WorkspaceFeatureFlag entries with isEnabled=false
-        val allWorkspaces = workspaceRepository.findAll()
-        val workspaceFeatureFlags = allWorkspaces.map { workspace ->
-            WorkspaceFeatureFlag(
-                workspace = workspace,
-                featureFlag = savedFeatureFlag,
-                isEnabled = false
-            )
-        }
-        val savedWorkspaceFeatureFlags = workspaceFeatureFlagRepository.saveAll(workspaceFeatureFlags)
-
-        // Step 2: Enable percentage-based rollout for the newly created associations
-        enableFeatureFlagByPercentage(savedFeatureFlag, savedWorkspaceFeatureFlags, request.rolloutPercentage)
+        enableFeatureFlagByPercentage(savedFeatureFlag, 0)
 
         return savedFeatureFlag.toDto()
     }
 
+    @Transactional
     fun updateFeatureFlag(id: UUID, request: UpdateFeatureFlagRequest): FeatureFlagDto {
         val featureFlag = featureFlagRepository.findById(id)
             .orElseThrow { ResourceNotFoundException("Feature flag not found with id: $id") }
 
         if (featureFlagRepository.existsByTeamAndName(featureFlag.team, request.name) &&
-            featureFlag.name != request.name) {
+            featureFlag.name != request.name
+        ) {
             throw IllegalArgumentException("Feature flag with name '${request.name}' already exists in this team")
         }
 
@@ -92,6 +82,9 @@ class FeatureFlagService(
             rolloutPercentage = request.rolloutPercentage
         )
         val savedFeatureFlag = featureFlagRepository.save(updatedFeatureFlag)
+
+        enableFeatureFlagByPercentage(savedFeatureFlag, request.rolloutPercentage)
+
         return savedFeatureFlag.toDto()
     }
 
@@ -117,7 +110,7 @@ class FeatureFlagService(
             return FeatureFlagEvaluationResponse(
                 enabled = isEnabled,
                 reason = if (isEnabled) "Enabled by rollout percentage (${featureFlag.rolloutPercentage}%)"
-                         else "Disabled by rollout percentage (${featureFlag.rolloutPercentage}%)"
+                else "Disabled by rollout percentage (${featureFlag.rolloutPercentage}%)"
             )
 
         } catch (ex: ResourceNotFoundException) {
@@ -137,35 +130,55 @@ class FeatureFlagService(
         return bucket < rolloutPercentage
     }
 
-    /**
-     * Enables feature flag for workspaces based on the rollout percentage.
-     * Uses consistent hash-based distribution to determine which workspaces should be enabled.
-     */
     private fun enableFeatureFlagByPercentage(
         featureFlag: FeatureFlag,
-        workspaceFeatureFlags: List<WorkspaceFeatureFlag>,
         rolloutPercentage: Int
     ) {
-        if (rolloutPercentage == 0) return // No workspaces should be enabled
+        val allWorkspaceFeatureFlags = workspaceFeatureFlagRepository.findByFeatureFlag(featureFlag)
+
+        // First, disable feature flag for all existing workspace-feature flag associations
+        val disabledFlags = allWorkspaceFeatureFlags.map { existing ->
+            WorkspaceFeatureFlag(
+                id = existing.id,
+                workspace = existing.workspace,
+                featureFlag = existing.featureFlag,
+                isEnabled = false
+            )
+        }
+        if (disabledFlags.isNotEmpty()) {
+            workspaceFeatureFlagRepository.saveAll(disabledFlags)
+        }
+
+        if (rolloutPercentage == 0) return
         if (rolloutPercentage == 100) {
-            // Enable all workspaces
-            val enabledFlags = workspaceFeatureFlags.map { wff ->
-                wff.copy(isEnabled = true)
+            val enabledFlags = workspaceFeatureFlagRepository.findByFeatureFlag(featureFlag).map { existing ->
+                WorkspaceFeatureFlag(
+                    id = existing.id,
+                    workspace = existing.workspace,
+                    featureFlag = existing.featureFlag,
+                    isEnabled = true
+                )
             }
             workspaceFeatureFlagRepository.saveAll(enabledFlags)
             return
         }
 
-        // For partial rollout, use consistent hash-based selection
         val workspacesToEnable = mutableListOf<WorkspaceFeatureFlag>()
 
-        workspaceFeatureFlags.forEach { workspaceFeatureFlag ->
+        allWorkspaceFeatureFlags.forEach { workspaceFeatureFlag ->
             val workspaceId = workspaceFeatureFlag.workspace.id!!
             val hash = abs((featureFlag.id.toString() + workspaceId.toString()).hashCode())
             val bucket = hash % 100
 
             if (bucket < rolloutPercentage) {
-                workspacesToEnable.add(workspaceFeatureFlag.copy(isEnabled = true))
+                workspacesToEnable.add(
+                    WorkspaceFeatureFlag(
+                        id = workspaceFeatureFlag.id,
+                        workspace = workspaceFeatureFlag.workspace,
+                        featureFlag = workspaceFeatureFlag.featureFlag,
+                        isEnabled = true
+                    )
+                )
             }
         }
 
@@ -184,5 +197,3 @@ class FeatureFlagService(
         )
     }
 }
-
-
