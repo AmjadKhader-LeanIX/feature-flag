@@ -1,6 +1,5 @@
 package com.featureflag.integration
 
-import com.fasterxml.jackson.databind.ObjectMapper
 import com.featureflag.dto.CreateFeatureFlagRequest
 import com.featureflag.dto.FeatureFlagDto
 import com.featureflag.dto.UpdateFeatureFlagRequest
@@ -27,9 +26,6 @@ class FeatureFlagIntegrationTest {
 
     @Autowired
     private lateinit var restTemplate: TestRestTemplate
-
-    @Autowired
-    private lateinit var objectMapper: ObjectMapper
 
     @LocalServerPort
     private var port: Int = 0
