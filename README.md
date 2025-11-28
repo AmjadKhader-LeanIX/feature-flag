@@ -1,240 +1,627 @@
-# Feature Flag Management Service
+<div align="center">
 
-A complete feature flag management service built with Kotlin, Spring Boot, and PostgreSQL, providing multi-tenant workspace support, customer-specific overrides, and rollout percentage control.
+# 🚀 Feature Flag Management Service
 
-## Technology Stack
+### A modern, multi-tenant feature flag management system
 
-- **Language & Runtime**: Kotlin 1.8.21, Java 17
-- **Framework**: Spring Boot 3.1.0
-- **Database**: PostgreSQL 15 with Flyway migrations
-- **Build Tool**: Gradle with Kotlin DSL
-- **Testing**: JUnit 5, MockK, TestContainers
-- **Code Quality**: Ktlint, OWASP Dependency Check
-- **Containerization**: Docker & Docker Compose
+[![Kotlin](https://img.shields.io/badge/Kotlin-2.1.0-purple?style=flat-square&logo=kotlin)](https://kotlinlang.org/)
+[![Spring Boot](https://img.shields.io/badge/Spring%20Boot-3.4.0-brightgreen?style=flat-square&logo=spring)](https://spring.io/projects/spring-boot)
+[![PostgreSQL](https://img.shields.io/badge/PostgreSQL-15-blue?style=flat-square&logo=postgresql)](https://www.postgresql.org/)
+[![Java](https://img.shields.io/badge/Java-21-orange?style=flat-square&logo=openjdk)](https://openjdk.org/)
+[![Vue.js](https://img.shields.io/badge/Vue.js-3-green?style=flat-square&logo=vue.js)](https://vuejs.org/)
+[![Docker](https://img.shields.io/badge/Docker-Enabled-blue?style=flat-square&logo=docker)](https://www.docker.com/)
 
-## Features
+Built with Kotlin, Spring Boot, and PostgreSQL, providing multi-tenant workspace support with team-based feature flags and automatic rollout percentage control.
 
-### Core Functionality
-- **Workspace Management**: Multi-tenant architecture with workspace isolation
-- **User Management**: Email-based users with active/inactive status
-- **Feature Flag Management**: Create, update, delete feature flags with rollout percentages
-- **Customer Overrides**: Customer-specific feature flag states that override rollout percentages
-- **Feature Evaluation**: Consistent hash-based evaluation with customer override support
+[Features](#-features) •
+[Quick Start](#-getting-started) •
+[API Docs](#-api-endpoints) •
+[Architecture](#-architecture) •
+[Contributing](#-contributing)
 
-### API Endpoints
+</div>
 
-#### Workspaces
-- `GET /api/workspaces` - List all workspaces
-- `POST /api/workspaces` - Create workspace
-- `GET /api/workspaces/{id}` - Get workspace by ID
-- `PUT /api/workspaces/{id}` - Update workspace
-- `DELETE /api/workspaces/{id}` - Delete workspace
-- `GET /api/workspaces/search?name={name}` - Search workspaces
+---
 
-#### Users
-- `GET /api/users` - List all users
-- `POST /api/users` - Create user
-- `GET /api/users/{id}` - Get user by ID
-- `PUT /api/users/{id}` - Update user
-- `DELETE /api/users/{id}` - Delete user
-- `GET /api/users/workspace/{workspaceId}` - Get users by workspace
-- `GET /api/users/workspace/{workspaceId}/active` - Get active users
+## 📋 Table of Contents
 
-#### Feature Flags
-- `GET /api/feature-flags` - List all feature flags
-- `POST /api/feature-flags` - Create feature flag
-- `GET /api/feature-flags/{id}` - Get feature flag by ID
-- `PUT /api/feature-flags/{id}` - Update feature flag
-- `DELETE /api/feature-flags/{id}` - Delete feature flag
-- `GET /api/feature-flags/workspace/{workspaceId}` - Get feature flags by workspace
-- `GET /api/feature-flags/search?name={name}` - Search feature flags
+- [Technology Stack](#-technology-stack)
+- [Features](#-features)
+- [Getting Started](#-getting-started)
+- [API Endpoints](#-api-endpoints)
+- [Database Schema](#-database-schema)
+- [API Usage Examples](#-api-usage-examples)
+- [Testing](#-testing)
+- [Monitoring](#-monitoring)
+- [Architecture](#-architecture)
+- [Feature Flag Rollout Logic](#-feature-flag-rollout-logic)
+- [Web UI](#-web-ui)
+- [Development](#-development)
+- [Known Limitations](#-known-limitations)
+- [Future Enhancements](#-future-enhancements)
+- [Contributing](#-contributing)
+- [License](#-license)
 
-#### Customer Feature Flags
-- `GET /api/customer-feature-flags` - List all customer overrides
-- `POST /api/customer-feature-flags` - Create customer override
-- `GET /api/customer-feature-flags/{id}` - Get customer override by ID
-- `PUT /api/customer-feature-flags/{id}` - Update customer override
-- `DELETE /api/customer-feature-flags/{id}` - Delete customer override
-- `GET /api/customer-feature-flags/customer/{customerId}` - Get overrides by customer
-- `GET /api/customer-feature-flags/workspace/{workspaceId}` - Get overrides by workspace
+---
 
-## Database Schema
+## 🛠 Technology Stack
+
+| Category | Technology |
+|----------|-----------|
+| **Language & Runtime** | Kotlin 2.1.0, Java 21 |
+| **Framework** | Spring Boot 3.4.0 |
+| **Database** | PostgreSQL 15 with Flyway migrations |
+| **Build Tool** | Gradle with Kotlin DSL |
+| **Testing** | JUnit 5, MockK, TestContainers |
+| **Security** | OWASP Dependency Check |
+| **Containerization** | Docker & Docker Compose |
+| **Frontend** | Vue.js 3, Axios |
+
+---
+
+## ✨ Features
+
+### 🎯 Core Functionality
+
+<table>
+<tr>
+<td width="50%">
+
+#### 🏢 Workspace Management
+Multi-tenant architecture with complete workspace isolation
+
+</td>
+<td width="50%">
+
+#### 🎚️ Feature Flag Management
+Team-based feature flags with rollout percentages (0-100%)
+
+</td>
+</tr>
+<tr>
+<td width="50%">
+
+#### 🔄 Automatic Rollout
+Consistent hash-based distribution of feature flags to workspaces
+
+</td>
+<td width="50%">
+
+#### 💻 Web UI
+Modern Vue.js interface for managing feature flags and workspaces
+
+</td>
+</tr>
+</table>
+
+---
+
+## 📡 API Endpoints
+
+### 🏢 Workspaces
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `GET` | `/api/workspaces` | 📋 List all workspaces |
+| `GET` | `/api/workspaces/{id}` | 🔍 Get workspace by ID |
+
+### 🎚️ Feature Flags
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `GET` | `/api/feature-flags` | 📋 List all feature flags |
+| `POST` | `/api/feature-flags` | ➕ Create feature flag |
+| `GET` | `/api/feature-flags/{id}` | 🔍 Get feature flag by ID |
+| `PUT` | `/api/feature-flags/{id}` | ✏️ Update feature flag |
+| `DELETE` | `/api/feature-flags/{id}` | ❌ Delete feature flag |
+| `GET` | `/api/feature-flags/workspace/{workspaceId}` | 🏢 Get flags for workspace |
+| `GET` | `/api/feature-flags/team/{team}` | 👥 Get flags by team |
+| `GET` | `/api/feature-flags/search?name={name}` | 🔎 Search feature flags |
+
+---
+
+## 🗄️ Database Schema
 
 The service uses PostgreSQL with the following main tables:
 
-- `workspaces` - Multi-tenant workspaces
-- `feature_flag` - Feature flag definitions with rollout percentages
+| Table | Description | Key Fields |
+|-------|-------------|------------|
+| **`workspaces`** | 🏢 Multi-tenant workspaces | `id`, `name`, `type`, `created_at`, `updated_at` |
+| **`feature_flag`** | 🎚️ Feature flag definitions | `id`, `name`, `description`, `team`, `rollout_percentage` |
+| **`workspace_feature_flag`** | 🔗 Workspace-flag relationships | `workspace_id`, `feature_flag_id`, `enabled` |
 
-## Getting Started
+<details>
+<summary>📊 View ERD Diagram</summary>
 
-### Prerequisites
-- Docker & Docker Compose
-- Java 17 (for local development)
+```
+┌─────────────────┐         ┌──────────────────────────┐         ┌─────────────────┐
+│   workspaces    │         │ workspace_feature_flag   │         │  feature_flag   │
+├─────────────────┤         ├──────────────────────────┤         ├─────────────────┤
+│ id (PK)         │◄────────│ workspace_id (FK)        │         │ id (PK)         │
+│ name            │         │ feature_flag_id (FK)     │────────►│ name            │
+│ type            │         │ enabled                  │         │ description     │
+│ created_at      │         │ created_at               │         │ team            │
+│ updated_at      │         │ updated_at               │         │ rollout_%       │
+└─────────────────┘         └──────────────────────────┘         │ created_at      │
+                                                                  │ updated_at      │
+                                                                  └─────────────────┘
+```
 
-### Running with Docker Compose
+</details>
 
-1. **Clone and build the application:**
+---
+
+## 🚀 Getting Started
+
+### 📋 Prerequisites
+
+- 🐳 Docker & Docker Compose
+- ☕ Java 21 (for local development)
+
+### 🐳 Running with Docker Compose
+
+#### 1️⃣ **Clone and build the application:**
 ```bash
 ./gradlew clean build
 ```
 
-2. **Start the complete stack:**
+#### 2️⃣ **Start the complete stack:**
 ```bash
 docker-compose up -d
 ```
 
 This starts:
-- PostgreSQL database (port 5432)
-- Feature Flag application (port 8080)
+- 🐘 PostgreSQL database (port 5432)
+- 🚀 Feature Flag application (port 8080)
 
-3. **Optional: Start with pgAdmin:**
+#### 3️⃣ **Access the application:**
+
+| Service | URL | Description |
+|---------|-----|-------------|
+| 💻 **Web UI** | http://localhost:8080 | Main application interface |
+| 📡 **API** | http://localhost:8080/api | REST API endpoints |
+| ❤️ **Health Check** | http://localhost:8080/actuator/health | Application health status |
+
+#### 4️⃣ **Optional: Start with pgAdmin:**
 ```bash
 docker-compose --profile tools up -d
 ```
 
-Access pgAdmin at http://localhost:5050 (admin@featureflag.com / admin123)
+### 💻 Local Development
 
-### Local Development
-
-1. **Start PostgreSQL:**
+#### 1️⃣ **Start PostgreSQL:**
 ```bash
 docker-compose up postgres -d
 ```
 
-2. **Run the application:**
+#### 2️⃣ **Run the application:**
 ```bash
 ./gradlew bootRun
 ```
 
-### Environment Variables
+### ⚙️ Environment Variables
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `SPRING_DATASOURCE_URL` | `jdbc:postgresql://localhost:5432/feature-flag?currentSchema=public` | Database URL |
-| `SPRING_DATASOURCE_USERNAME` | `feature-flag` | Database username |
-| `SPRING_DATASOURCE_PASSWORD` | `feature-flag123` | Database password |
-| `SERVER_PORT` | `8080` | Application port |
+| `SPRING_DATASOURCE_URL` | `jdbc:postgresql://localhost:5432/feature-flag?currentSchema=public` | 🐘 Database URL |
+| `SPRING_DATASOURCE_USERNAME` | `feature-flag` | 👤 Database username |
+| `SPRING_DATASOURCE_PASSWORD` | `feature-flag123` | 🔒 Database password |
+| `SERVER_PORT` | `8080` | 🌐 Application port |
 
-## API Usage Examples
+---
+---
 
-### Create a Workspace
+## 📝 API Usage Examples
+
+### 🏢 Get All Workspaces
 ```bash
-curl -X POST http://localhost:8080/api/workspaces \
-  -H "Content-Type: application/json" \
-  -d '{"name": "My Workspace"}'
+curl http://localhost:8080/api/workspaces
 ```
 
-### Create a Feature Flag
+### 🔍 Get Workspace by ID
+```bash
+curl http://localhost:8080/api/workspaces/{workspace-id}
+```
+
+### ➕ Create a Feature Flag
 ```bash
 curl -X POST http://localhost:8080/api/feature-flags \
   -H "Content-Type: application/json" \
   -d '{
     "name": "new-checkout-flow",
     "description": "Enable new checkout flow",
-    "workspaceId": "your-workspace-id",
+    "team": "checkout-team",
     "rolloutPercentage": 25
   }'
 ```
 
-### Evaluate a Feature Flag
-```bash
-curl "http://localhost:8080/api/feature-flags/{feature-flag-id}/check?customerId={customer-id}"
-```
+> **💡 Note:** When a feature flag is created or updated, the system automatically calculates which workspaces should have it enabled based on the rollout percentage using consistent hashing.
 
-Response:
-```json
-{
-  "enabled": true,
-  "reason": "Enabled by rollout percentage (25%)"
-}
-```
-
-### Create Customer Override
+### ✏️ Update a Feature Flag
 ```bash
-curl -X POST http://localhost:8080/api/customer-feature-flags \
+curl -X PUT http://localhost:8080/api/feature-flags/{feature-flag-id} \
   -H "Content-Type: application/json" \
   -d '{
-    "customerId": "customer-uuid",
-    "featureFlagId": "feature-flag-uuid",
-    "isEnabled": true
+    "name": "new-checkout-flow",
+    "description": "Enable new checkout flow for more users",
+    "team": "checkout-team",
+    "rolloutPercentage": 50
   }'
 ```
 
-## Testing
+### 👥 Get Feature Flags by Team
+```bash
+curl http://localhost:8080/api/feature-flags/team/checkout-team
+```
 
-### Run Unit Tests
+### 🏢 Get Feature Flags for a Workspace
+```bash
+curl http://localhost:8080/api/feature-flags/workspace/{workspace-id}
+```
+
+> **ℹ️** This returns only the feature flags that are enabled for the specified workspace based on rollout percentages.
+
+### 🔎 Search Feature Flags
+```bash
+curl "http://localhost:8080/api/feature-flags/search?name=checkout"
+```
+
+### ❌ Delete a Feature Flag
+```bash
+curl -X DELETE http://localhost:8080/api/feature-flags/{feature-flag-id}
+```
+
+---
+---
+
+## 🧪 Testing
+
+### ▶️ Run All Tests
 ```bash
 ./gradlew test
 ```
 
-### Run Integration Tests
-```bash
-./gradlew integrationTest
+### 📊 View Test Reports
+After running tests, view the HTML report at:
+```
+build/reports/tests/test/index.html
 ```
 
-### Code Quality Checks
+### 🔒 Security Vulnerability Check
 ```bash
-# Kotlin linting
-./gradlew ktlintCheck
-
-# Security vulnerability check
 ./gradlew dependencyCheckAnalyze
 ```
 
-## Monitoring
+---
+
+## 📊 Monitoring
 
 The application includes Spring Boot Actuator endpoints:
 
-- Health: `GET /actuator/health`
-- Metrics: `GET /actuator/metrics`
-- Info: `GET /actuator/info`
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/actuator/health` | `GET` | ❤️ Application health status |
+| `/actuator/metrics` | `GET` | 📈 Application metrics |
+| `/actuator/info` | `GET` | ℹ️ Application information |
 
-## Architecture
+---
 
-The application follows a layered architecture:
+## 🏗️ Architecture
+
+The application follows a **layered architecture**:
 
 ```
-Controller → Service → Repository → Database
+┌─────────────┐
+│  Vue.js UI  │  💻 Frontend
+└──────┬──────┘
+       │
+┌──────▼──────┐
+│  REST API   │  🌐 HTTP Layer
+└──────┬──────┘
+       │
+┌──────▼──────┐
+│ Controllers │  📡 Request Handling
+└──────┬──────┘
+       │
+┌──────▼──────┐
+│  Services   │  ⚙️ Business Logic
+└──────┬──────┘
+       │
+┌──────▼──────┐
+│Repositories │  💾 Data Access
+└──────┬──────┘
+       │
+┌──────▼──────┐
+│  PostgreSQL │  🐘 Database
+└─────────────┘
 ```
 
-- **Controllers**: REST API endpoints with validation
-- **Services**: Business logic and transaction management
-- **Repositories**: Data access with Spring Data JPA
-- **Entities**: JPA entities with proper relationships
-- **DTOs**: Data transfer objects for API communication
-- **Exceptions**: Global exception handling with proper HTTP responses
+### 🔧 Components:
 
-## Feature Flag Evaluation Logic
+<table>
+<tr>
+<td width="33%">
 
-The service uses a consistent hash-based approach for feature flag evaluation:
+**🎨 Frontend**
+- Vue.js 3 SPA
+- Axios for API calls
+- Real-time updates
 
-1. **Customer Override Check**: First checks if there's a customer-specific override
-2. **Rollout Percentage**: If no override, uses consistent hashing based on customer ID
-3. **Consistency**: Same customer ID always gets the same result for the same rollout percentage
+</td>
+<td width="33%">
 
-## Development
+**📡 Controllers**
+- REST endpoints
+- Jakarta validation
+- Request mapping
 
-### Code Style
-The project uses Ktlint for Kotlin code formatting. Configuration is in `.editorconfig`.
+</td>
+<td width="33%">
 
-### Database Migrations
-Database schema changes are managed with Flyway migrations in `src/main/resources/db/migration/`.
+**⚙️ Services**
+- Business logic
+- Rollout calculation
+- Transactions
 
-### Adding New Features
-1. Create/update entities
-2. Add repository methods
-3. Implement service logic
-4. Create REST endpoints
-5. Add tests
-6. Update documentation
+</td>
+</tr>
+<tr>
+<td width="33%">
 
-## Contributing
+**💾 Repositories**
+- Spring Data JPA
+- Custom queries
+- Database access
 
-1. Follow the existing code style
-2. Add tests for new functionality
-3. Update documentation
-4. Ensure all quality checks pass
+</td>
+<td width="33%">
 
-## License
+**📦 Entities**
+- JPA entities
+- Relationships
+- Constraints
+
+</td>
+<td width="33%">
+
+**📤 DTOs**
+- Request/Response objects
+- Validation rules
+- Data transfer
+
+</td>
+</tr>
+</table>
+
+### 📚 Key Entities:
+
+- **`Workspace`** - Multi-tenant workspaces
+- **`FeatureFlag`** - Feature flag definitions
+- **`WorkspaceFeatureFlag`** - Join table with enabled status
+
+### 📋 DTOs:
+
+- **`FeatureFlagDto`** - Feature flag data
+- **`CreateFeatureFlagRequest`** - Create request
+- **`UpdateFeatureFlagRequest`** - Update request
+- **`WorkspaceDto`** - Workspace data
+
+---
+---
+
+## 🎯 Feature Flag Rollout Logic
+
+The service uses a **consistent hash-based approach** for automatic feature flag distribution:
+
+### ⚙️ How It Works:
+
+<table>
+<tr>
+<td>
+
+#### 1️⃣ **Creation/Update**
+When a feature flag is created or its rollout percentage is updated, the system automatically calculates which workspaces should have it enabled.
+
+</td>
+</tr>
+<tr>
+<td>
+
+#### 2️⃣ **Consistent Hashing**
+```
+Hash = (feature_flag_id + workspace_id).hashCode()
+Bucket = abs(Hash) % 100
+Enabled = Bucket < rollout_percentage
+```
+
+</td>
+</tr>
+<tr>
+<td>
+
+#### 3️⃣ **Consistency Guarantee**
+The same feature flag will always be enabled/disabled for the same workspace at a given rollout percentage.
+
+</td>
+</tr>
+</table>
+
+### 🎚️ Special Cases:
+
+| Rollout % | Behavior | Description |
+|-----------|----------|-------------|
+| **0%** | 🔴 Disabled | Feature flag disabled for all workspaces |
+| **1-99%** | 🟡 Partial | Distributed based on consistent hashing |
+| **100%** | 🟢 Enabled | Feature flag enabled for all workspaces |
+
+### 💡 Example:
+
+> If a feature flag has a **25% rollout**:
+> - System hashes each `(feature_flag_id + workspace_id)` combination
+> - ~25% of workspaces will have the flag enabled
+> - The same workspaces will **always** be in that 25% (deterministic)
+
+---
+---
+
+## 💻 Web UI
+
+The application includes a modern web interface built with **Vue.js 3**:
+
+### 🌐 Access
+
+**Location:** http://localhost:8080
+
+### ✨ Features
+
+<table>
+<tr>
+<td width="50%">
+
+✅ View and manage workspaces
+✅ Create, edit, and delete feature flags
+✅ Control rollout percentages with visual feedback
+
+</td>
+<td width="50%">
+
+✅ Search and filter functionality
+✅ Real-time updates
+✅ Modern, responsive design
+
+</td>
+</tr>
+</table>
+
+### 📁 Static Resources:
+
+| File | Description |
+|------|-------------|
+| `index.html` | 📄 Main HTML page |
+| `app.js` | ⚛️ Vue.js application logic |
+| `styles.css` | 🎨 Styling |
+
+---
+
+## 🛠️ Development
+
+### 📊 Database Migrations
+
+Database schema changes are managed with **Flyway migrations** in `src/main/resources/db/migration/`:
+
+| Migration | Description |
+|-----------|-------------|
+| `V1__Initial_schema.sql` | 🏗️ Initial database schema |
+| `V2__Add_timestamps_to_feature_flag.sql` | ⏰ Added timestamps to feature flags |
+
+### 📂 Project Structure
+
+```
+src/
+├── main/
+│   ├── kotlin/com/featureflag/
+│   │   ├── FeatureFlagApplication.kt       # 🚀 Main application
+│   │   ├── controller/
+│   │   │   ├── FeatureFlagController.kt    # 🎚️ Feature flag endpoints
+│   │   │   └── WorkspaceController.kt      # 🏢 Workspace endpoints
+│   │   ├── dto/
+│   │   │   ├── FeatureFlagDto.kt           # 📦 Feature flag DTOs
+│   │   │   └── WorkspaceDto.kt             # 📦 Workspace DTOs
+│   │   ├── entity/
+│   │   │   ├── FeatureFlag.kt              # 🗃️ Feature flag entity
+│   │   │   ├── Workspace.kt                # 🗃️ Workspace entity
+│   │   │   └── WorkspaceFeatureFlag.kt     # 🗃️ Join table entity
+│   │   ├── exception/
+│   │   │   └── ...                         # ⚠️ Exception handlers
+│   │   ├── repository/
+│   │   │   └── ...                         # 💾 JPA repositories
+│   │   └── service/
+│   │       ├── FeatureFlagService.kt       # ⚙️ Feature flag logic
+│   │       └── WorkspaceService.kt         # ⚙️ Workspace logic
+│   └── resources/
+│       ├── application.yml                 # ⚙️ Configuration
+│       ├── db/migration/                   # 📊 Database migrations
+│       └── static/                         # 🌐 Web UI files
+└── test/
+    └── kotlin/com/featureflag/
+        └── ...                             # 🧪 Tests
+```
+
+### ➕ Adding New Features
+
+| Step | Action |
+|------|--------|
+| 1️⃣ | Create/update entities in `entity/` package |
+| 2️⃣ | Add repository methods using Spring Data JPA |
+| 3️⃣ | Implement business logic in `service/` package |
+| 4️⃣ | Create REST endpoints in `controller/` package |
+| 5️⃣ | Add DTOs for request/response in `dto/` package |
+| 6️⃣ | Write unit and integration tests |
+| 7️⃣ | Update database migrations if needed |
+| 8️⃣ | Update this documentation |
+
+### 🔨 Building
+
+```bash
+# Clean and build
+./gradlew clean build
+
+# Build without tests
+./gradlew clean build -x test
+
+# Create Docker image
+docker build -t feature-flag:latest .
+```
+
+---
+
+## ⚠️ Known Limitations
+
+| Issue | Description |
+|-------|-------------|
+| 🔄 **Rollout Logic** | The rollout percentage logic currently resets all workspace associations when updating, which may cause unintended changes for workspaces that had the flag enabled |
+| 🔒 **Authentication** | No authentication/authorization implemented |
+| 📝 **Workspace API** | Workspace creation and management endpoints are read-only via API |
+
+---
+
+## 🚧 Future Enhancements
+
+- [ ] 🔄 Improve rollout logic to handle incremental updates
+- [ ] 🔒 Add authentication and authorization
+- [ ] ✏️ Implement workspace CRUD operations (create, update, delete)
+- [ ] ⏰ Add feature flag scheduling (enable/disable at specific times)
+- [ ] 📝 Add audit logging for all changes
+- [ ] 📦 Implement feature flag versioning
+- [ ] 📊 Add metrics and analytics for flag usage
+- [ ] 👤 Add user-specific overrides in addition to workspace-based rollout
+
+---
+
+## 🤝 Contributing
+
+We welcome contributions! Please follow these guidelines:
+
+| Step | Action |
+|------|--------|
+| 1️⃣ | Follow the existing code style |
+| 2️⃣ | Add comprehensive tests for new functionality |
+| 3️⃣ | Update API documentation and this README |
+| 4️⃣ | Ensure all tests pass: `./gradlew test` |
+| 5️⃣ | Run security checks: `./gradlew dependencyCheckAnalyze` |
+
+---
+
+## 📄 License
+
+This project is for **educational and demonstration purposes**.
+
+---
+
+<div align="center">
+
+**[⬆ back to top](#-feature-flag-management-service)**
+
+</div>
 
 
