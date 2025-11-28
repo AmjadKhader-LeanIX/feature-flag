@@ -8,7 +8,6 @@ import java.util.*
 @Repository
 interface FeatureFlagRepository : JpaRepository<FeatureFlag, UUID> {
     fun findByTeam(team: String): List<FeatureFlag>
-    fun findByTeamAndName(team: String, name: String): Optional<FeatureFlag>
     fun findByNameContainingIgnoreCase(name: String): List<FeatureFlag>
     fun existsByTeamAndName(team: String, name: String): Boolean
 

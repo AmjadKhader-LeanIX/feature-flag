@@ -24,29 +24,5 @@ class WorkspaceController(
     fun getWorkspaceById(@PathVariable id: UUID): ResponseEntity<WorkspaceDto> {
         val workspace = workspaceService.getWorkspaceById(id)
         return ResponseEntity.ok(workspace)
-
-
-
-        @PutMapping("/{id}")
-        fun updateWorkspace(
-            @PathVariable id: UUID,
-            @Valid @RequestBody request: UpdateWorkspaceRequest
-        ): ResponseEntity<WorkspaceDto> {
-            val workspace = workspaceService.updateWorkspace(id, request)
-            return ResponseEntity.ok(workspace)
-        }
-
-        @DeleteMapping("/{id}")
-        fun deleteWorkspace(@PathVariable id: UUID): ResponseEntity<Void> {
-            workspaceService.deleteWorkspace(id)
-            return ResponseEntity.noContent().build()
-        }
-
-        @GetMapping("/search")
-        fun searchWorkspaces(@RequestParam name: String): ResponseEntity<List<WorkspaceDto>> {
-            val workspaces = workspaceService.searchWorkspaces(name)
-            return ResponseEntity.ok(workspaces)
-        }
-
     }
 }
