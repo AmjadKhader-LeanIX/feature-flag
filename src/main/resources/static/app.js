@@ -53,6 +53,14 @@ const apiService = {
         return this.request('/feature-flags');
     },
 
+    getFeatureFlagsByTeam(team) {
+        return this.request(`/feature-flags/team/${encodeURIComponent(team)}`);
+    },
+
+    getFeatureFlagsByWorkspace(workspaceId) {
+        return this.request(`/feature-flags/workspace/${workspaceId}`);
+    },
+
     createFeatureFlag(data) {
         return this.request('/feature-flags', {
             method: 'POST',
@@ -551,6 +559,7 @@ const App = {
         const filters = reactive({
             workspaceId: '',
             userWorkspaceId: '',
+            team: '',
         });
 
         // Modal states
@@ -610,10 +619,16 @@ const App = {
                     (flag.description && flag.description.toLowerCase().includes(searchTerms.featureFlag.toLowerCase())) ||
                     flag.team.toLowerCase().includes(searchTerms.featureFlag.toLowerCase());
 
-                const matchesWorkspace = !filters.workspaceId; // For now, show all as workspace association isn't in DTO
+                const matchesTeam = !filters.team ||
+                    flag.team.toLowerCase().includes(filters.team.toLowerCase());
 
-                return matchesSearch && matchesWorkspace;
+                return matchesSearch && matchesTeam;
             });
+        });
+
+        const uniqueTeams = computed(() => {
+            const teams = [...new Set(featureFlags.value.map(flag => flag.team))];
+            return teams.sort();
         });
 
         // Methods
@@ -662,7 +677,11 @@ const App = {
         const loadFeatureFlags = async () => {
             try {
                 loading.featureFlags = true;
-                featureFlags.value = await apiService.getFeatureFlags();
+                if (filters.workspaceId) {
+                    featureFlags.value = await apiService.getFeatureFlagsByWorkspace(filters.workspaceId);
+                } else {
+                    featureFlags.value = await apiService.getFeatureFlags();
+                }
             } catch (error) {
                 showToast(error.message, 'error');
             } finally {
@@ -783,6 +802,16 @@ const App = {
             return flag ? flag.name : 'Unknown Feature';
         };
 
+        // Watchers
+        const { watch } = Vue;
+
+        // Watch for workspace filter changes
+        watch(() => filters.workspaceId, () => {
+            if (currentTab.value === 'feature-flags') {
+                loadFeatureFlags();
+            }
+        });
+
         // Lifecycle
         onMounted(() => {
             loadDashboardData();
@@ -805,6 +834,7 @@ const App = {
             recentActivity,
             filteredWorkspaces,
             filteredFeatureFlags,
+            uniqueTeams,
 
             // Methods
             showToast,
@@ -931,6 +961,12 @@ const App = {
                                 <p>Control feature rollouts and experiments</p>
                             </div>
                             <div class="page-actions">
+                                <select v-model="filters.team" class="form-select">
+                                    <option value="">All Teams</option>
+                                    <option v-for="team in uniqueTeams" :key="team" :value="team">
+                                        {{ team }}
+                                    </option>
+                                </select>
                                 <select v-model="filters.workspaceId" class="form-select">
                                     <option value="">All Workspaces</option>
                                     <option v-for="workspace in workspaces" :key="workspace.id" :value="workspace.id">

@@ -35,6 +35,12 @@ class FeatureFlagController(
         return ResponseEntity.ok(featureFlags)
     }
 
+    @GetMapping("/team/{team}")
+    fun getFeatureFlagsByTeam(@PathVariable team: String): ResponseEntity<List<FeatureFlagDto>> {
+        val featureFlags = featureFlagService.getFeatureFlagsByTeam(team)
+        return ResponseEntity.ok(featureFlags)
+    }
+
     @PostMapping
     fun createFeatureFlag(@Valid @RequestBody request: CreateFeatureFlagRequest): ResponseEntity<FeatureFlagDto> {
         val featureFlag = featureFlagService.createFeatureFlag(request)
@@ -71,4 +77,3 @@ class FeatureFlagController(
         return ResponseEntity.ok(evaluation)
     }
 }
-
