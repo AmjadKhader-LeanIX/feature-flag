@@ -1,16 +1,13 @@
 package com.featureflag.service
 
-import com.featureflag.dto.CreateWorkspaceRequest
 import com.featureflag.dto.WorkspaceDto
 import com.featureflag.entity.Workspace
 import com.featureflag.exception.ResourceNotFoundException
 import com.featureflag.repository.WorkspaceRepository
 import org.springframework.stereotype.Service
-import org.springframework.transaction.annotation.Transactional
 import java.util.*
 
 @Service
-@Transactional
 class WorkspaceService(
     private val workspaceRepository: WorkspaceRepository
 ) {
@@ -23,19 +20,6 @@ class WorkspaceService(
         val workspace = workspaceRepository.findById(id)
             .orElseThrow { ResourceNotFoundException("Workspace not found with id: $id") }
         return workspace.toDto()
-    }
-
-    fun createWorkspace(request: CreateWorkspaceRequest): WorkspaceDto {
-        if (workspaceRepository.existsByName(request.name)) {
-            throw IllegalArgumentException("Workspace with name '${request.name}' already exists")
-        }
-
-        val workspace = Workspace(
-            name = request.name,
-            type = request.type
-        )
-        val savedWorkspace = workspaceRepository.save(workspace)
-        return savedWorkspace.toDto()
     }
 
     private fun Workspace.toDto(): WorkspaceDto {

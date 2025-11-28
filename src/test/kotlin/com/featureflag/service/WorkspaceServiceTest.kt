@@ -1,6 +1,5 @@
 package com.featureflag.service
 
-import com.featureflag.dto.CreateWorkspaceRequest
 import com.featureflag.entity.Workspace
 import com.featureflag.exception.ResourceNotFoundException
 import com.featureflag.repository.WorkspaceRepository
@@ -8,7 +7,6 @@ import io.mockk.every
 import io.mockk.mockk
 import io.mockk.verify
 import org.junit.jupiter.api.Assertions.assertEquals
-import org.junit.jupiter.api.Assertions.assertNotNull
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
@@ -89,42 +87,4 @@ class WorkspaceServiceTest {
         }
         verify { workspaceRepository.findById(workspaceId) }
     }
-
-    @Test
-    fun `should create workspace successfully`() {
-        // Given
-        val request = CreateWorkspaceRequest("New Workspace", "development")
-        val savedWorkspace = Workspace(
-            id = UUID.randomUUID(),
-            name = "New Workspace",
-            type = "development",
-            createdAt = LocalDateTime.now(),
-            updatedAt = LocalDateTime.now()
-        )
-        every { workspaceRepository.existsByName("New Workspace") } returns false
-        every { workspaceRepository.save(any()) } returns savedWorkspace
-
-        // When
-        val result = workspaceService.createWorkspace(request)
-
-        // Then
-        assertEquals("New Workspace", result.name)
-        assertNotNull(result.id)
-        verify { workspaceRepository.existsByName("New Workspace") }
-        verify { workspaceRepository.save(any()) }
-    }
-
-    @Test
-    fun `should throw exception when creating workspace with duplicate name`() {
-        // Given
-        val request = CreateWorkspaceRequest("Existing Workspace", "production")
-        every { workspaceRepository.existsByName("Existing Workspace") } returns true
-
-        // When & Then
-        assertThrows<IllegalArgumentException> {
-            workspaceService.createWorkspace(request)
-        }
-        verify { workspaceRepository.existsByName("Existing Workspace") }
-
 }
-    }
