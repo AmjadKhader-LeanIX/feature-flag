@@ -1,250 +1,5 @@
-const {createApp, ref, computed, reactive, onMounted, nextTick} = Vue;
+const { createApp, ref, computed, reactive, onMounted, watch } = Vue;
 
-// API Service
-const apiService = {
-    baseURL: '/api',
-
-    async request(endpoint, options = {}) {
-        try {
-            const response = await axios({
-                url: `${this.baseURL}${endpoint}`,
-                method: options.method || 'GET',
-                headers: {
-                    'Content-Type': 'application/json',
-                    ...options.headers
-                },
-                ...options
-            });
-            return response.data;
-        } catch (error) {
-            console.error('API request failed:', error);
-            const message = error.response?.data?.message || error.message || 'An error occurred';
-            throw new Error(message);
-        }
-    },
-
-    // Feature Flag API
-    getFeatureFlags() {
-        return this.request('/feature-flags');
-    },
-
-    getFeatureFlagsByTeam(team) {
-        return this.request(`/feature-flags/team/${encodeURIComponent(team)}`);
-    },
-
-    createFeatureFlag(data) {
-        return this.request('/feature-flags', {
-            method: 'POST',
-            data
-        });
-    },
-
-    updateFeatureFlag(id, data) {
-        return this.request(`/feature-flags/${id}`, {
-            method: 'PUT',
-            data
-        });
-    },
-
-    deleteFeatureFlag(id) {
-        return this.request(`/feature-flags/${id}`, {
-            method: 'DELETE'
-        });
-    },
-
-    // Audit Log API
-    getAuditLogs(params = {}) {
-        const queryString = new URLSearchParams(params).toString();
-        return this.request(`/audit-logs${queryString ? '?' + queryString : ''}`);
-    },
-
-    getAuditLogsByFeatureFlagId(featureFlagId) {
-        return this.request(`/audit-logs/feature-flag/${featureFlagId}`);
-    },
-};
-
-// Toast Component
-const ToastComponent = {
-    template: `
-        <Transition name="slide-fade">
-            <div v-if="visible" :class="['toast', type, 'show']">
-                <div class="toast-content">
-                    <span class="toast-message">{{ message }}</span>
-                    <button class="toast-close" @click="close">×</button>
-                </div>
-            </div>
-        </Transition>
-    `,
-    props: ['visible', 'message', 'type'],
-    emits: ['close'],
-    methods: {
-        close() {
-            this.$emit('close');
-        }
-    }
-};
-
-// Modal Component
-const ModalComponent = {
-    template: `
-        <Transition name="fade">
-            <div v-if="visible" class="modal-overlay" @click="closeModal">
-                <div class="modal" @click.stop>
-                    <div class="modal-header">
-                        <h2>{{ title }}</h2>
-                        <button class="modal-close" @click="closeModal">×</button>
-                    </div>
-                    <div class="modal-content">
-                        <slot></slot>
-                    </div>
-                </div>
-            </div>
-        </Transition>
-    `,
-    props: ['visible', 'title'],
-    emits: ['close'],
-    methods: {
-        closeModal() {
-            this.$emit('close');
-        }
-    }
-};
-
-// Feature Flag Form Component
-const FeatureFlagFormComponent = {
-    template: `
-        <form @submit.prevent="submit">
-            <div class="form-group">
-                <label for="flag-name">Name *</label>
-                <input
-                    id="flag-name"
-                    v-model="form.name"
-                    type="text"
-                    required
-                    placeholder="Enter feature flag name"
-                    :disabled="isEdit"
-                />
-            </div>
-            <div class="form-group">
-                <label for="flag-description">Description</label>
-                <textarea
-                    id="flag-description"
-                    v-model="form.description"
-                    placeholder="Enter description (optional)"
-                    :disabled="isEdit"
-                ></textarea>
-            </div>
-            <div class="form-group">
-                <label for="flag-team">Team *</label>
-                <input
-                    id="flag-team"
-                    v-model="form.team"
-                    type="text"
-                    required
-                    placeholder="Enter team name"
-                    :disabled="isEdit"
-                />
-            </div>
-            <div v-if="!isEdit" class="form-group">
-                <label>Regions *</label>
-                <div style="max-height: 200px; overflow-y: auto; border: 1px solid #ddd; padding: 10px; border-radius: 4px;">
-                    <label class="checkbox-label" style="display: block; margin-bottom: 8px;">
-                        <input type="checkbox" value="ALL" v-model="form.regions" />
-                        ALL (All Regions)
-                    </label>
-                    <label class="checkbox-label" style="display: block; margin-bottom: 8px;">
-                        <input type="checkbox" value="WESTEUROPE" v-model="form.regions" :disabled="form.regions.includes('ALL')" />
-                        West Europe
-                    </label>
-                    <label class="checkbox-label" style="display: block; margin-bottom: 8px;">
-                        <input type="checkbox" value="EASTUS" v-model="form.regions" :disabled="form.regions.includes('ALL')" />
-                        East US
-                    </label>
-                </div>
-                <small v-if="form.regions.length === 0" style="color: red;">Please select at least one region</small>
-            </div>
-            <div v-if="isEdit" class="form-group">
-                <label for="flag-rollout">Rollout Percentage</label>
-                <div class="range-input">
-                    <input
-                        id="flag-rollout"
-                        v-model.number="form.rolloutPercentage"
-                        type="range"
-                        min="0"
-                        max="100"
-                    />
-                    <span class="rollout-display">{{ form.rolloutPercentage }}%</span>
-                </div>
-            </div>
-            <div class="modal-actions">
-                <button type="button" class="btn btn-secondary" @click="cancel">Cancel</button>
-                <button type="submit" class="btn btn-primary" :disabled="!isEdit && form.regions.length === 0">
-                    {{ isEdit ? 'Update' : 'Create' }}
-                </button>
-            </div>
-        </form>
-    `,
-    props: ['featureFlag', 'isEdit'],
-    emits: ['submit', 'cancel'],
-    data() {
-        return {
-            form: {
-                name: '',
-                description: '',
-                team: '',
-                regions: ['ALL'],
-                rolloutPercentage: 0
-            }
-        };
-    },
-    watch: {
-        featureFlag: {
-            immediate: true,
-            handler(newFlag) {
-                if (newFlag) {
-                    this.form.name = newFlag.name || '';
-                    this.form.description = newFlag.description || '';
-                    this.form.team = newFlag.team || '';
-                    this.form.regions = newFlag.regions || ['ALL'];
-                    this.form.rolloutPercentage = newFlag.rolloutPercentage || 0;
-                } else {
-                    this.form.name = '';
-                    this.form.description = '';
-                    this.form.team = '';
-                    this.form.regions = ['ALL'];
-                    this.form.rolloutPercentage = 0;
-                }
-            }
-        },
-        'form.regions': {
-            handler(newRegions) {
-                if (newRegions.includes('ALL') && newRegions.length > 1) {
-                    this.form.regions = ['ALL'];
-                }
-            }
-        }
-    },
-    methods: {
-        submit() {
-            if (!this.isEdit && this.form.regions.length === 0) {
-                return;
-            }
-            const data = {
-                name: this.form.name,
-                description: this.form.description || null,
-                team: this.form.team,
-                regions: this.form.regions,
-                rolloutPercentage: this.isEdit ? this.form.rolloutPercentage : 0
-            };
-            this.$emit('submit', data);
-        },
-        cancel() {
-            this.$emit('cancel');
-        }
-    }
-};
-
-// Main App
 const App = {
     components: {
         ToastComponent,
@@ -446,22 +201,18 @@ const App = {
         const formatJsonDiff = (oldValues, newValues) => {
             const changes = [];
             if (!oldValues && newValues) {
-                // CREATE operation - show all new values
                 Object.entries(newValues).forEach(([key, value]) => {
                     changes.push({ field: key, old: null, new: value, changed: true });
                 });
             } else if (oldValues && !newValues) {
-                // DELETE operation - show all old values
                 Object.entries(oldValues).forEach(([key, value]) => {
                     changes.push({ field: key, old: value, new: null, changed: true });
                 });
             } else if (oldValues && newValues) {
-                // UPDATE operation - only show changed fields
                 const allKeys = new Set([...Object.keys(oldValues), ...Object.keys(newValues)]);
                 allKeys.forEach(key => {
                     const oldVal = oldValues[key];
                     const newVal = newValues[key];
-                    // Only include if values are different
                     if (JSON.stringify(oldVal) !== JSON.stringify(newVal)) {
                         changes.push({
                             field: key,
@@ -474,8 +225,6 @@ const App = {
             }
             return changes;
         };
-
-        const { watch } = Vue;
 
         watch(() => filters.auditFlagId, () => {
             if (currentTab.value === 'audit-logs') {
@@ -877,3 +626,9 @@ const App = {
         </div>
     `
 };
+
+document.addEventListener('DOMContentLoaded', function() {
+    if (typeof Vue !== 'undefined' && typeof App !== 'undefined') {
+        createApp(App).mount('#app');
+    }
+});
