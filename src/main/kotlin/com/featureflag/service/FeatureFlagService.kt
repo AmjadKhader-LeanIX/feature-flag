@@ -185,31 +185,30 @@ class FeatureFlagService(
             return
         }
 
-        // For percentage between 1-99, use deterministic bucket assignment
+        // For percentage between 1-99, use deterministic ordering with exact count
+        // Calculate exact number of workspaces to enable
+        val totalWorkspaces = allWorkspaceFeatureFlags.size
+        val targetEnabledCount = (totalWorkspaces * newPercentage / 100.0).toInt()
+
+        // Create a deterministic ordering of all workspaces using hash
+        // This ensures the same workspaces are always selected for the same percentage
+        val sortedWorkspaces = allWorkspaceFeatureFlags.sortedBy { workspaceFeatureFlag ->
+            val workspaceId = workspaceFeatureFlag.workspace.id!!
+            // Calculate a deterministic hash for this workspace-feature flag combination
+            abs((featureFlag.id.toString() + workspaceId.toString()).hashCode())
+        }
+
         val workspacesToUpdate = mutableListOf<WorkspaceFeatureFlag>()
 
-        allWorkspaceFeatureFlags.forEach { workspaceFeatureFlag ->
-            val workspaceId = workspaceFeatureFlag.workspace.id!!
-
-            // Calculate a deterministic hash for this workspace-feature flag combination
-            // The hash will always be the same for this specific combination
-            val hash = abs((featureFlag.id.toString() + workspaceId.toString()).hashCode())
-
-            // Map the hash to a bucket (0-99) using modulo operation
-            // This distributes workspaces evenly across 100 buckets
-            val bucket = hash % 100
-
-            // Determine if this workspace should be enabled based on its bucket
-            // If bucket < newPercentage, it should be enabled
-            // Example: At 30% rollout, buckets 0-29 should be enabled (30 out of 100 buckets)
-            val shouldBeEnabled = bucket < newPercentage
+        // Enable exactly targetEnabledCount workspaces (the first ones in sorted order)
+        // Disable the rest
+        sortedWorkspaces.forEachIndexed { index, workspaceFeatureFlag ->
+            val shouldBeEnabled = index < targetEnabledCount
 
             // Only update workspaces where the state needs to change
             // This ensures:
-            // - On increase (e.g., 30% → 50%): Workspaces in buckets 0-29 stay enabled (no update needed),
-            //   workspaces in buckets 30-49 get enabled (update needed)
-            // - On decrease (e.g., 50% → 30%): Workspaces in buckets 0-29 stay enabled (no update needed),
-            //   workspaces in buckets 30-49 get disabled (update needed)
+            // - On increase (e.g., 30% → 50%): First 30% stay enabled, next 20% get enabled
+            // - On decrease (e.g., 50% → 30%): First 30% stay enabled, remaining 20% get disabled
             if (workspaceFeatureFlag.isEnabled != shouldBeEnabled) {
                 workspacesToUpdate.add(
                     WorkspaceFeatureFlag(
