@@ -138,6 +138,8 @@ class FeatureFlagServiceTest {
 
         every { featureFlagRepository.existsByTeamAndName("team1", "new-flag") } returns false
         every { featureFlagRepository.save(any()) } returns savedFeatureFlag
+        every { workspaceRepository.findAll() } returns emptyList()
+        every { workspaceFeatureFlagRepository.saveAll(any<List<WorkspaceFeatureFlag>>()) } returns emptyList()
         every { workspaceFeatureFlagRepository.findByFeatureFlag(savedFeatureFlag) } returns emptyList()
 
         val result = featureFlagService.createFeatureFlag(request)
@@ -276,6 +278,8 @@ class FeatureFlagServiceTest {
 
             every { featureFlagRepository.existsByTeamAndName("team1", "zero-flag") } returns false
             every { featureFlagRepository.save(any()) } returns savedFeatureFlag
+            every { workspaceRepository.findAll() } returns emptyList()
+            every { workspaceFeatureFlagRepository.saveAll(any<List<WorkspaceFeatureFlag>>()) } returns emptyList()
             every { workspaceFeatureFlagRepository.findByFeatureFlag(savedFeatureFlag) } returns emptyList()
 
             val result = featureFlagService.createFeatureFlag(request)

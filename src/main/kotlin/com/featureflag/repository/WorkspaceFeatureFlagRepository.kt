@@ -10,6 +10,7 @@ import java.util.*
 interface WorkspaceFeatureFlagRepository : JpaRepository<WorkspaceFeatureFlag, UUID> {
     fun findByWorkspaceId(workspaceId: UUID): List<WorkspaceFeatureFlag>
     fun findByFeatureFlag(featureFlag: FeatureFlag): List<WorkspaceFeatureFlag>
+    fun findByFeatureFlagAndWorkspaceRegion(featureFlag: FeatureFlag, region: String): List<WorkspaceFeatureFlag>
 }
 
 
