@@ -316,8 +316,8 @@ class FeatureFlagServiceTest {
 
     @ParameterizedTest
     @org.junit.jupiter.params.provider.CsvSource(
-//        "0, 100",
-//        "100, 0",
+        "0, 100",
+        "100, 0",
         "20, 50",
         "50, 20"
     )
