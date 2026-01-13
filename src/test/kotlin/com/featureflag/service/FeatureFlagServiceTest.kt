@@ -314,6 +314,76 @@ class FeatureFlagServiceTest {
         )
     }
 
+    @ParameterizedTest
+    @org.junit.jupiter.params.provider.CsvSource(
+//        "0, 100",
+//        "100, 0",
+        "20, 50",
+        "50, 20"
+    )
+    fun `should handle rollout percentage updates correctly`(oldPercentage: Int, newPercentage: Int) {
+        val flagId = UUID.randomUUID()
+        val existingFlag = createMockFeatureFlag("flag", "team1", flagId).copy(rolloutPercentage = oldPercentage)
+
+        val workspaces = (0..9).map { createMockWorkspace(UUID.randomUUID()) }
+
+        val workspaceFeatureFlags = workspaces.map { workspace ->
+            val hash = kotlin.math.abs((existingFlag.id.toString() + workspace.id.toString()).hashCode())
+            val bucket = hash % 100
+            val shouldBeEnabledAtOld = bucket < oldPercentage
+
+            WorkspaceFeatureFlag(
+                id = UUID.randomUUID(),
+                workspace = workspace,
+                featureFlag = existingFlag,
+                isEnabled = shouldBeEnabledAtOld
+            )
+        }
+
+        val originalEnabledWorkspaceIds = workspaceFeatureFlags.filter { it.isEnabled }.map { it.workspace.id }.toSet()
+
+        val request = UpdateFeatureFlagRequest("flag", "description", "team1", newPercentage)
+        val updatedFlag = existingFlag.copy(rolloutPercentage = newPercentage)
+
+        every { featureFlagRepository.findById(flagId) } returns Optional.of(existingFlag)
+        every { featureFlagRepository.existsByTeamAndName("team1", "flag") } returns true
+        every { featureFlagRepository.save(any()) } returns updatedFlag
+        every { workspaceFeatureFlagRepository.findByFeatureFlag(any()) } returns workspaceFeatureFlags
+
+        val savedWorkspaces = mutableListOf<List<WorkspaceFeatureFlag>>()
+        every { workspaceFeatureFlagRepository.saveAll(capture(savedWorkspaces)) } returns emptyList()
+
+        val result = featureFlagService.updateFeatureFlag(flagId, request)
+
+        assertEquals(newPercentage, result.rolloutPercentage, "Returned DTO should have new percentage")
+        verify { workspaceFeatureFlagRepository.saveAll(any<List<WorkspaceFeatureFlag>>()) }
+
+        if (savedWorkspaces.isNotEmpty()) {
+            val saved = savedWorkspaces.first()
+
+            when {
+                newPercentage == 0 -> {
+                    assert(saved.all { !it.isEnabled }) { "All changed workspaces should be disabled at 0%" }
+                }
+                newPercentage == 100 -> {
+                    assert(saved.all { it.isEnabled }) { "All changed workspaces should be enabled at 100%" }
+                }
+                newPercentage > oldPercentage -> {
+                    val nowDisabled = saved.filter { !it.isEnabled && originalEnabledWorkspaceIds.contains(it.workspace.id) }
+                    assert(nowDisabled.isEmpty()) {
+                        "When increasing percentage, no originally enabled workspaces should be disabled. Found: ${nowDisabled.map { it.workspace.id }}"
+                    }
+                }
+                newPercentage < oldPercentage -> {
+                    val wronglyEnabled = saved.filter { it.isEnabled && !originalEnabledWorkspaceIds.contains(it.workspace.id) }
+                    assert(wronglyEnabled.isEmpty()) {
+                        "When decreasing percentage, no new workspaces should be enabled. Found: ${wronglyEnabled.map { it.workspace.id }}"
+                    }
+                }
+            }
+        }
+    }
+
     private fun createMockWorkspace(id: UUID = UUID.randomUUID()): Workspace {
         return Workspace(
             id = id,

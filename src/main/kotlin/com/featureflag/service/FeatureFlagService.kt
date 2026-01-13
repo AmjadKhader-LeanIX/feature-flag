@@ -57,7 +57,7 @@ class FeatureFlagService(
         )
         val savedFeatureFlag = featureFlagRepository.save(featureFlag)
 
-        enableFeatureFlagByPercentage(savedFeatureFlag, 0)
+        updateFeatureFlagRollout(savedFeatureFlag, request.rolloutPercentage)
 
         return savedFeatureFlag.toDto()
     }
@@ -81,7 +81,7 @@ class FeatureFlagService(
         )
         val savedFeatureFlag = featureFlagRepository.save(updatedFeatureFlag)
 
-        enableFeatureFlagByPercentage(savedFeatureFlag, request.rolloutPercentage)
+        updateFeatureFlagRollout(savedFeatureFlag, request.rolloutPercentage)
 
         return savedFeatureFlag.toDto()
     }
@@ -102,7 +102,6 @@ class FeatureFlagService(
         featureFlag: FeatureFlag,
         rolloutPercentage: Int
     ) {
-        // todo: This logic needs to be improved where it should not change the "enabled" value for the workspace that has it true expect in the cases where we are decreasing the rollout percentage.
         val allWorkspaceFeatureFlags = workspaceFeatureFlagRepository.findByFeatureFlag(featureFlag)
 
         // First, disable feature flag for all existing workspace-feature flag associations
@@ -153,6 +152,106 @@ class FeatureFlagService(
 
         if (workspacesToEnable.isNotEmpty()) {
             workspaceFeatureFlagRepository.saveAll(workspacesToEnable)
+        }
+    }
+
+    /**
+     * Updates the rollout of a feature flag across all workspaces based on the new percentage.
+     *
+     * This method ensures two critical guarantees:
+     * 1. When INCREASING percentage: Previously enabled workspaces stay enabled
+     * 2. When DECREASING percentage: Some enabled workspaces are disabled
+     *
+     * How it works:
+     * - Uses deterministic hashing to assign each workspace to a "bucket" (0-99)
+     * - The same workspace-feature flag combination always produces the same bucket
+     * - Workspaces with bucket < newPercentage are enabled, others are disabled
+     *
+     * Example with 1000 workspaces:
+     * - At 30%: Workspaces in buckets 0-29 (~300 workspaces) are enabled
+     * - Increase to 50%: Buckets 0-29 stay enabled + buckets 30-49 get enabled (~500 total)
+     * - Decrease to 20%: Only buckets 0-19 stay enabled (~200 total), buckets 20-29 get disabled
+     *
+     * @param featureFlag The feature flag being updated
+     * @param newPercentage The new rollout percentage (0-100)
+     */
+    private fun updateFeatureFlagRollout(
+        featureFlag: FeatureFlag,
+        newPercentage: Int
+    ) {
+        // Load all existing workspace-feature flag associations for this feature flag
+        val allWorkspaceFeatureFlags = workspaceFeatureFlagRepository.findByFeatureFlag(featureFlag)
+
+        // Case 1: 0% rollout means disable all workspaces
+        if (newPercentage == 0) {
+            val disabledFlags = allWorkspaceFeatureFlags.map { existing ->
+                WorkspaceFeatureFlag(
+                    id = existing.id,
+                    workspace = existing.workspace,
+                    featureFlag = existing.featureFlag,
+                    isEnabled = false
+                )
+            }
+            if (disabledFlags.isNotEmpty()) {
+                workspaceFeatureFlagRepository.saveAll(disabledFlags)
+            }
+            return
+        }
+
+        // Case 2: 100% rollout means enable all workspaces
+        if (newPercentage == 100) {
+            val enabledFlags = allWorkspaceFeatureFlags.map { existing ->
+                WorkspaceFeatureFlag(
+                    id = existing.id,
+                    workspace = existing.workspace,
+                    featureFlag = existing.featureFlag,
+                    isEnabled = true
+                )
+            }
+            workspaceFeatureFlagRepository.saveAll(enabledFlags)
+            return
+        }
+
+        // For percentage between 1-99, use deterministic bucket assignment
+        val workspacesToUpdate = mutableListOf<WorkspaceFeatureFlag>()
+
+        allWorkspaceFeatureFlags.forEach { workspaceFeatureFlag ->
+            val workspaceId = workspaceFeatureFlag.workspace.id!!
+
+            // Calculate a deterministic hash for this workspace-feature flag combination
+            // The hash will always be the same for this specific combination
+            val hash = abs((featureFlag.id.toString() + workspaceId.toString()).hashCode())
+
+            // Map the hash to a bucket (0-99) using modulo operation
+            // This distributes workspaces evenly across 100 buckets
+            val bucket = hash % 100
+
+            // Determine if this workspace should be enabled based on its bucket
+            // If bucket < newPercentage, it should be enabled
+            // Example: At 30% rollout, buckets 0-29 should be enabled (30 out of 100 buckets)
+            val shouldBeEnabled = bucket < newPercentage
+
+            // Only update workspaces where the state needs to change
+            // This ensures:
+            // - On increase (e.g., 30% → 50%): Workspaces in buckets 0-29 stay enabled (no update needed),
+            //   workspaces in buckets 30-49 get enabled (update needed)
+            // - On decrease (e.g., 50% → 30%): Workspaces in buckets 0-29 stay enabled (no update needed),
+            //   workspaces in buckets 30-49 get disabled (update needed)
+            if (workspaceFeatureFlag.isEnabled != shouldBeEnabled) {
+                workspacesToUpdate.add(
+                    WorkspaceFeatureFlag(
+                        id = workspaceFeatureFlag.id,
+                        workspace = workspaceFeatureFlag.workspace,
+                        featureFlag = workspaceFeatureFlag.featureFlag,
+                        isEnabled = shouldBeEnabled
+                    )
+                )
+            }
+        }
+
+        // Batch update all workspaces that need state changes
+        if (workspacesToUpdate.isNotEmpty()) {
+            workspaceFeatureFlagRepository.saveAll(workspacesToUpdate)
         }
     }
 
