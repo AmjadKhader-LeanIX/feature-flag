@@ -3,7 +3,6 @@ package com.featureflag.service
 import com.featureflag.dto.CreateFeatureFlagRequest
 import com.featureflag.dto.UpdateFeatureFlagRequest
 import com.featureflag.entity.FeatureFlag
-import com.featureflag.entity.Region
 import com.featureflag.entity.Workspace
 import com.featureflag.entity.WorkspaceFeatureFlag
 import com.featureflag.exception.ResourceNotFoundException
@@ -337,10 +336,17 @@ class FeatureFlagServiceTest {
 
         val workspaces = (0..9).map { createMockWorkspace(UUID.randomUUID()) }
 
-        val workspaceFeatureFlags = workspaces.map { workspace ->
-            val hash = kotlin.math.abs((existingFlag.id.toString() + workspace.id.toString()).hashCode())
-            val bucket = hash % 100
-            val shouldBeEnabledAtOld = bucket < oldPercentage
+        // Sort workspaces deterministically the same way the service does
+        val sortedWorkspaces = workspaces.sortedBy { workspace ->
+            kotlin.math.abs((existingFlag.id.toString() + workspace.id.toString()).hashCode())
+        }
+
+        // Calculate how many should be enabled at old percentage using exact count
+        val totalWorkspaces = workspaces.size
+        val oldTargetCount = (totalWorkspaces * oldPercentage / 100.0).toInt()
+
+        val workspaceFeatureFlags = sortedWorkspaces.mapIndexed { index, workspace ->
+            val shouldBeEnabledAtOld = index < oldTargetCount
 
             WorkspaceFeatureFlag(
                 id = UUID.randomUUID(),

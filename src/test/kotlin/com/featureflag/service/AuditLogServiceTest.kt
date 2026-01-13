@@ -4,7 +4,6 @@ import com.fasterxml.jackson.databind.ObjectMapper
 import com.featureflag.entity.AuditOperation
 import com.featureflag.entity.FeatureFlag
 import com.featureflag.entity.FeatureFlagAuditLog
-import com.featureflag.entity.Region
 import com.featureflag.repository.FeatureFlagAuditLogRepository
 import io.mockk.every
 import io.mockk.mockk
