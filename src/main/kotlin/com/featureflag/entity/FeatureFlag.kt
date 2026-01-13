@@ -29,9 +29,8 @@ data class FeatureFlag(
     @Max(100)
     val rolloutPercentage: Int,
 
-    @Enumerated(EnumType.STRING)
-    @Column(name = "region", nullable = false)
-    val region: Region = Region.ALL,
+    @Column(name = "regions", nullable = false)
+    val regions: String = "ALL",
 
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)

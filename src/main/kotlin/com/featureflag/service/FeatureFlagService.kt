@@ -50,12 +50,13 @@ class FeatureFlagService(
             throw IllegalArgumentException("Feature flag with name '${request.name}' already exists in this team")
         }
 
+        val regionsString = request.regions.joinToString(",")
         val featureFlag = FeatureFlag(
             name = request.name,
             description = request.description,
             team = request.team,
             rolloutPercentage = request.rolloutPercentage,
-            region = Region.valueOf(request.region)
+            regions = regionsString
         )
         val savedFeatureFlag = featureFlagRepository.save(featureFlag)
 
@@ -75,12 +76,13 @@ class FeatureFlagService(
             throw IllegalArgumentException("Feature flag with name '${request.name}' already exists in this team")
         }
 
+        val regionsString = request.regions.joinToString(",")
         val updatedFeatureFlag = featureFlag.copy(
             name = request.name,
             description = request.description,
             team = request.team,
             rolloutPercentage = request.rolloutPercentage,
-            region = Region.valueOf(request.region)
+            regions = regionsString
         )
         val savedFeatureFlag = featureFlagRepository.save(updatedFeatureFlag)
 
@@ -105,21 +107,25 @@ class FeatureFlagService(
      * Updates the rollout of a feature flag based on region matching and percentage.
      *
      * Logic:
-     * - If feature flag region is INTERNATIONAL, apply to all workspaces
-     * - Otherwise, only apply to workspaces with matching region
+     * - If feature flag regions contains ALL, apply to all workspaces
+     * - Otherwise, only apply to workspaces with matching region (any of the feature flag's regions)
      * - Uses deterministic hashing to assign workspaces to buckets for consistent rollout
      */
     private fun updateFeatureFlagRollout(featureFlag: FeatureFlag) {
         val allWorkspaceFeatureFlags = workspaceFeatureFlagRepository.findByFeatureFlag(featureFlag)
         val workspacesToUpdate = mutableListOf<WorkspaceFeatureFlag>()
 
+        // Parse comma-separated regions string
+        val regionsList = featureFlag.regions.split(",").map { it.trim() }
+
         allWorkspaceFeatureFlags.forEach { workspaceFeatureFlag ->
             val workspace = workspaceFeatureFlag.workspace
 
-            // Determine if this workspace matches the feature flag's region
-            val isRegionMatch = when (featureFlag.region) {
-                Region.ALL -> true  // ALL flags apply to all workspaces
-                else -> workspace.region == featureFlag.region  // Specific region must match
+            // Determine if this workspace matches any of the feature flag's regions
+            val isRegionMatch = when {
+                regionsList.contains("ALL") -> true  // ALL flags apply to all workspaces
+                workspace.region == null -> false  // Workspace has no region assigned
+                else -> regionsList.contains(workspace.region.name)  // Check if workspace region is in feature flag's regions
             }
 
             // Calculate whether workspace should be enabled
@@ -163,7 +169,7 @@ class FeatureFlagService(
             description = this.description,
             team = this.team,
             rolloutPercentage = this.rolloutPercentage,
-            region = this.region.name,
+            regions = this.regions.split(",").map { it.trim() },
             createdAt = this.createdAt,
             updatedAt = this.updatedAt
         )

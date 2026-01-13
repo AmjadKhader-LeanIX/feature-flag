@@ -237,22 +237,62 @@ const FeatureFlagFormComponent = {
                 />
             </div>
             <div v-if="!isEdit" class="form-group">
-                <label for="flag-region">Region *</label>
-                <select id="flag-region" v-model="form.region" required>
-                    <option value="ALL">ALL (All Regions)</option>
-                    <option value="WESTEUROPE">West Europe</option>
-                    <option value="EASTUS">East US</option>
-                    <option value="CANADACENTRAL">Canada Central</option>
-                    <option value="AUSTRALIAEAST">Australia East</option>
-                    <option value="GERMANYWESTCENTRAL">Germany West Central</option>
-                    <option value="SWITZERLANDNORTH">Switzerland North</option>
-                    <option value="UAENORTH">UAE North</option>
-                    <option value="UKSOUTH">UK South</option>
-                    <option value="BRAZILSOUTH">Brazil South</option>
-                    <option value="SOUTHEASTASIA">Southeast Asia</option>
-                    <option value="JAPANEAST">Japan East</option>
-                    <option value="NORTHEUROPE">North Europe</option>
-                </select>
+                <label>Regions *</label>
+                <div style="max-height: 200px; overflow-y: auto; border: 1px solid #ddd; padding: 10px; border-radius: 4px;">
+                    <label class="checkbox-label" style="display: block; margin-bottom: 8px;">
+                        <input type="checkbox" value="ALL" v-model="form.regions" />
+                        ALL (All Regions)
+                    </label>
+                    <label class="checkbox-label" style="display: block; margin-bottom: 8px;">
+                        <input type="checkbox" value="WESTEUROPE" v-model="form.regions" :disabled="form.regions.includes('ALL')" />
+                        West Europe
+                    </label>
+                    <label class="checkbox-label" style="display: block; margin-bottom: 8px;">
+                        <input type="checkbox" value="EASTUS" v-model="form.regions" :disabled="form.regions.includes('ALL')" />
+                        East US
+                    </label>
+                    <label class="checkbox-label" style="display: block; margin-bottom: 8px;">
+                        <input type="checkbox" value="CANADACENTRAL" v-model="form.regions" :disabled="form.regions.includes('ALL')" />
+                        Canada Central
+                    </label>
+                    <label class="checkbox-label" style="display: block; margin-bottom: 8px;">
+                        <input type="checkbox" value="AUSTRALIAEAST" v-model="form.regions" :disabled="form.regions.includes('ALL')" />
+                        Australia East
+                    </label>
+                    <label class="checkbox-label" style="display: block; margin-bottom: 8px;">
+                        <input type="checkbox" value="GERMANYWESTCENTRAL" v-model="form.regions" :disabled="form.regions.includes('ALL')" />
+                        Germany West Central
+                    </label>
+                    <label class="checkbox-label" style="display: block; margin-bottom: 8px;">
+                        <input type="checkbox" value="SWITZERLANDNORTH" v-model="form.regions" :disabled="form.regions.includes('ALL')" />
+                        Switzerland North
+                    </label>
+                    <label class="checkbox-label" style="display: block; margin-bottom: 8px;">
+                        <input type="checkbox" value="UAENORTH" v-model="form.regions" :disabled="form.regions.includes('ALL')" />
+                        UAE North
+                    </label>
+                    <label class="checkbox-label" style="display: block; margin-bottom: 8px;">
+                        <input type="checkbox" value="UKSOUTH" v-model="form.regions" :disabled="form.regions.includes('ALL')" />
+                        UK South
+                    </label>
+                    <label class="checkbox-label" style="display: block; margin-bottom: 8px;">
+                        <input type="checkbox" value="BRAZILSOUTH" v-model="form.regions" :disabled="form.regions.includes('ALL')" />
+                        Brazil South
+                    </label>
+                    <label class="checkbox-label" style="display: block; margin-bottom: 8px;">
+                        <input type="checkbox" value="SOUTHEASTASIA" v-model="form.regions" :disabled="form.regions.includes('ALL')" />
+                        Southeast Asia
+                    </label>
+                    <label class="checkbox-label" style="display: block; margin-bottom: 8px;">
+                        <input type="checkbox" value="JAPANEAST" v-model="form.regions" :disabled="form.regions.includes('ALL')" />
+                        Japan East
+                    </label>
+                    <label class="checkbox-label" style="display: block; margin-bottom: 8px;">
+                        <input type="checkbox" value="NORTHEUROPE" v-model="form.regions" :disabled="form.regions.includes('ALL')" />
+                        North Europe
+                    </label>
+                </div>
+                <small v-if="form.regions.length === 0" style="color: red;">Please select at least one region</small>
             </div>
             <div v-if="isEdit" class="form-group">
                 <label for="flag-rollout">Rollout Percentage</label>
@@ -269,7 +309,7 @@ const FeatureFlagFormComponent = {
             </div>
             <div class="modal-actions">
                 <button type="button" class="btn btn-secondary" @click="cancel">Cancel</button>
-                <button type="submit" class="btn btn-primary">
+                <button type="submit" class="btn btn-primary" :disabled="!isEdit && form.regions.length === 0">
                     {{ isEdit ? 'Update' : 'Create' }}
                 </button>
             </div>
@@ -283,7 +323,7 @@ const FeatureFlagFormComponent = {
                 name: '',
                 description: '',
                 team: '',
-                region: 'ALL',
+                regions: ['ALL'],
                 rolloutPercentage: 0
             }
         };
@@ -296,25 +336,36 @@ const FeatureFlagFormComponent = {
                     this.form.name = newFlag.name || '';
                     this.form.description = newFlag.description || '';
                     this.form.team = newFlag.team || '';
-                    this.form.region = newFlag.region || 'ALL';
+                    this.form.regions = newFlag.regions || ['ALL'];
                     this.form.rolloutPercentage = newFlag.rolloutPercentage || 0;
                 } else {
                     this.form.name = '';
                     this.form.description = '';
                     this.form.team = '';
-                    this.form.region = 'ALL';
+                    this.form.regions = ['ALL'];
                     this.form.rolloutPercentage = 0;
+                }
+            }
+        },
+        'form.regions': {
+            handler(newRegions) {
+                // If ALL is selected, clear other selections
+                if (newRegions.includes('ALL') && newRegions.length > 1) {
+                    this.form.regions = ['ALL'];
                 }
             }
         }
     },
     methods: {
         submit() {
+            if (!this.isEdit && this.form.regions.length === 0) {
+                return;
+            }
             const data = {
                 name: this.form.name,
                 description: this.form.description || null,
                 team: this.form.team,
-                region: this.form.region,
+                regions: this.form.regions,
                 rolloutPercentage: this.isEdit ? this.form.rolloutPercentage : 0
             };
             this.$emit('submit', data);
@@ -648,7 +699,7 @@ const App = {
                     flag.team.toLowerCase().includes(filters.team.toLowerCase());
 
                 const matchesRegion = !filters.region ||
-                    flag.region === filters.region;
+                    (flag.regions && flag.regions.includes(filters.region));
 
                 return matchesSearch && matchesTeam && matchesRegion;
             });
@@ -660,8 +711,13 @@ const App = {
         });
 
         const uniqueRegions = computed(() => {
-            const regions = [...new Set(featureFlags.value.map(flag => flag.region))];
-            return regions.sort();
+            const regionsSet = new Set();
+            featureFlags.value.forEach(flag => {
+                if (flag.regions) {
+                    flag.regions.forEach(region => regionsSet.add(region));
+                }
+            });
+            return Array.from(regionsSet).sort();
         });
 
         // Methods
@@ -1035,9 +1091,11 @@ const App = {
                                             <div class="grid-meta">
                                                 <span>Team: {{ flag.team }}</span>
                                                 <span>Rollout: {{ flag.rolloutPercentage }}%</span>
-                                                <span :class="['badge', flag.region === 'ALL' ? 'badge-info' : 'badge-warning']">
+                                            </div>
+                                            <div class="grid-meta">
+                                                <span v-for="region in flag.regions" :key="region" :class="['badge', region === 'ALL' ? 'badge-info' : 'badge-warning']" style="margin-right: 4px;">
                                                     <i class="fas fa-globe"></i>
-                                                    {{ flag.region }}
+                                                    {{ region }}
                                                 </span>
                                             </div>
                                             <div class="progress-bar">

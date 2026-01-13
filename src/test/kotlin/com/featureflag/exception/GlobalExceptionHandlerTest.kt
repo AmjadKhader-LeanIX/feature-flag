@@ -95,7 +95,7 @@ class GlobalExceptionHandlerTest {
             {
                 "name": "",
                 "team": "",
-                "region": "ALL",
+                "regions": ["ALL"],
                 "rolloutPercentage": -1
             }
         """.trimIndent()

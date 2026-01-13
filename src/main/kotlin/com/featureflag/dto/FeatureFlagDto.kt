@@ -14,7 +14,7 @@ data class FeatureFlagDto(
     val description: String?,
     val team: String,
     val rolloutPercentage: Int,
-    val region: String = "ALL",
+    val regions: List<String> = listOf("ALL"),
     val createdAt: LocalDateTime? = null,
     val updatedAt: LocalDateTime? = null
 )
@@ -25,7 +25,7 @@ data class CreateFeatureFlagRequest(
     val description: String?,
     @field:NotBlank(message = "Team is required")
     val team: String,
-    val region: String = "ALL",
+    val regions: List<String> = listOf("ALL"),
     @field:Min(value = 0, message = "Rollout percentage must be between 0 and 100")
     @field:Max(value = 100, message = "Rollout percentage must be between 0 and 100")
     val rolloutPercentage: Int = 0,
@@ -37,7 +37,7 @@ data class UpdateFeatureFlagRequest(
     val description: String?,
     @field:NotBlank(message = "Team is required")
     val team: String,
-    val region: String = "ALL",
+    val regions: List<String> = listOf("ALL"),
     @field:NotNull(message = "Rollout percentage is required")
     @field:Min(value = 0, message = "Rollout percentage must be between 0 and 100")
     @field:Max(value = 100, message = "Rollout percentage must be between 0 and 100")

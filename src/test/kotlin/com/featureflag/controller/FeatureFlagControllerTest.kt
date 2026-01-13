@@ -127,7 +127,7 @@ class FeatureFlagControllerTest {
 
     @Test
     fun `should create feature flag successfully`() {
-        val request = CreateFeatureFlagRequest("new-flag", "description", "team1", "ALL", 50)
+        val request = CreateFeatureFlagRequest("new-flag", "description", "team1", listOf("ALL"), 50)
         val createdFlag = createMockFeatureFlagDto("new-flag", "team1")
         every { featureFlagService.createFeatureFlag(request) } returns createdFlag
 
@@ -147,7 +147,7 @@ class FeatureFlagControllerTest {
 
     @Test
     fun `should return 400 when creating feature flag with invalid data`() {
-        val invalidRequest = CreateFeatureFlagRequest("", null, "", "ALL", -1)
+        val invalidRequest = CreateFeatureFlagRequest("", null, "", listOf("ALL"), -1)
 
         mockMvc.perform(
             post("/api/feature-flags")
@@ -162,7 +162,7 @@ class FeatureFlagControllerTest {
 
     @Test
     fun `should return 400 when creating feature flag with existing name in team`() {
-        val request = CreateFeatureFlagRequest("existing-flag", "description", "team1", "ALL", 50)
+        val request = CreateFeatureFlagRequest("existing-flag", "description", "team1", listOf("ALL"), 50)
         every { featureFlagService.createFeatureFlag(request) } throws IllegalArgumentException("Feature flag with name 'existing-flag' already exists in this team")
 
         mockMvc.perform(
@@ -180,7 +180,7 @@ class FeatureFlagControllerTest {
     @Test
     fun `should update feature flag successfully`() {
         val flagId = UUID.randomUUID()
-        val request = UpdateFeatureFlagRequest("updated-flag", "new description", "team1", "ALL", 75)
+        val request = UpdateFeatureFlagRequest("updated-flag", "new description", "team1", listOf("ALL"), 75)
         val updatedFlag = createMockFeatureFlagDto("updated-flag", "team1", flagId).copy(rolloutPercentage = 75)
         every { featureFlagService.updateFeatureFlag(flagId, request) } returns updatedFlag
 
@@ -200,7 +200,7 @@ class FeatureFlagControllerTest {
     @Test
     fun `should return 404 when updating non-existent feature flag`() {
         val flagId = UUID.randomUUID()
-        val request = UpdateFeatureFlagRequest("flag", "description", "team1", "ALL", 50)
+        val request = UpdateFeatureFlagRequest("flag", "description", "team1", listOf("ALL"), 50)
         every { featureFlagService.updateFeatureFlag(flagId, request) } throws ResourceNotFoundException("Feature flag not found with id: $flagId")
 
         mockMvc.perform(
@@ -217,7 +217,7 @@ class FeatureFlagControllerTest {
     @Test
     fun `should return 400 when updating feature flag with invalid data`() {
         val flagId = UUID.randomUUID()
-        val invalidRequest = UpdateFeatureFlagRequest("", null, "", "ALL", 150)
+        val invalidRequest = UpdateFeatureFlagRequest("", null, "", listOf("ALL"), 150)
 
         mockMvc.perform(
             put("/api/feature-flags/$flagId")
@@ -283,7 +283,7 @@ class FeatureFlagControllerTest {
     @ParameterizedTest
     @ValueSource(ints = [0, 100])
     fun `should handle rollout percentage boundary values`(rolloutPercentage: Int) {
-        val request = CreateFeatureFlagRequest("${rolloutPercentage}-flag", "description", "team1", "ALL", rolloutPercentage)
+        val request = CreateFeatureFlagRequest("${rolloutPercentage}-flag", "description", "team1", listOf("ALL"), rolloutPercentage)
         val createdFlag = createMockFeatureFlagDto("${rolloutPercentage}-flag", "team1").copy(rolloutPercentage = rolloutPercentage)
         every { featureFlagService.createFeatureFlag(request) } returns createdFlag
 
@@ -327,7 +327,7 @@ class FeatureFlagControllerTest {
             name = name,
             description = "Test description",
             team = team,
-            region = "ALL",
+            regions = listOf("ALL"),
             rolloutPercentage = 50,
             createdAt = LocalDateTime.now(),
             updatedAt = LocalDateTime.now()

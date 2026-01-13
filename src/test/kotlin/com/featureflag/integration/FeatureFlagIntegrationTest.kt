@@ -39,7 +39,7 @@ class FeatureFlagIntegrationTest {
             name = "integration-test-flag",
             description = "Test flag for integration testing",
             team = "integration-team",
-            region = "ALL",
+            regions = listOf("ALL"),
             rolloutPercentage = 75
         )
 
@@ -75,7 +75,7 @@ class FeatureFlagIntegrationTest {
             name = "updated-integration-flag",
             description = "Updated description",
             team = "integration-team",
-            region = "ALL",
+            regions = listOf("ALL"),
             rolloutPercentage = 50
         )
         val updateEntity = HttpEntity(updateRequest, headers)
@@ -113,7 +113,7 @@ class FeatureFlagIntegrationTest {
             name = "",
             description = null,
             team = "",
-            region = "ALL",
+            regions = listOf("ALL"),
             rolloutPercentage = 150
         )
 
@@ -136,7 +136,7 @@ class FeatureFlagIntegrationTest {
             name = "duplicate-flag",
             description = "First flag",
             team = "test-team",
-            region = "ALL",
+            regions = listOf("ALL"),
             rolloutPercentage = 50
         )
 
@@ -155,7 +155,7 @@ class FeatureFlagIntegrationTest {
             name = "duplicate-flag",
             description = "Duplicate flag",
             team = "test-team",
-            region = "ALL",
+            regions = listOf("ALL"),
             rolloutPercentage = 75
         )
         val duplicateEntity = HttpEntity(duplicateRequest, headers)
@@ -174,7 +174,7 @@ class FeatureFlagIntegrationTest {
             name = "same-name-flag",
             description = "Flag for team 1",
             team = "team-1",
-            region = "ALL",
+            regions = listOf("ALL"),
             rolloutPercentage = 25
         )
 
@@ -193,7 +193,7 @@ class FeatureFlagIntegrationTest {
             name = "same-name-flag",
             description = "Flag for team 2",
             team = "team-2",
-            region = "ALL",
+            regions = listOf("ALL"),
             rolloutPercentage = 75
         )
         val team2Entity = HttpEntity(team2Request, headers)
@@ -212,7 +212,7 @@ class FeatureFlagIntegrationTest {
             name = "zero-percent-flag",
             description = "0% rollout",
             team = "boundary-test",
-            region = "ALL",
+            regions = listOf("ALL"),
             rolloutPercentage = 0
         )
 
@@ -232,7 +232,7 @@ class FeatureFlagIntegrationTest {
             name = "hundred-percent-flag",
             description = "100% rollout",
             team = "boundary-test",
-            region = "ALL",
+            regions = listOf("ALL"),
             rolloutPercentage = 100
         )
         val hundredEntity = HttpEntity(hundredPercentRequest, headers)
@@ -253,7 +253,7 @@ class FeatureFlagIntegrationTest {
             name = "team-flag-1",
             description = "First team flag",
             team = team,
-            region = "ALL",
+            regions = listOf("ALL"),
             rolloutPercentage = 30
         )
 
@@ -272,7 +272,7 @@ class FeatureFlagIntegrationTest {
             name = "team-flag-2",
             description = "Second team flag",
             team = team,
-            region = "ALL",
+            regions = listOf("ALL"),
             rolloutPercentage = 70
         )
         val flag2Entity = HttpEntity(flag2Request, headers)
@@ -300,7 +300,7 @@ class FeatureFlagIntegrationTest {
             name = "searchable-integration-flag",
             description = "A flag that can be searched",
             team = "search-team",
-            region = "ALL",
+            regions = listOf("ALL"),
             rolloutPercentage = 60
         )
 
