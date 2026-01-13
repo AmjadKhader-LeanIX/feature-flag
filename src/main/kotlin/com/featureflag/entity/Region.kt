@@ -1,0 +1,17 @@
+package com.featureflag.entity
+
+enum class Region {
+    ALL,
+    WESTEUROPE,
+    EASTUS,
+    CANADACENTRAL,
+    AUSTRALIAEAST,
+    GERMANYWESTCENTRAL,
+    SWITZERLANDNORTH,
+    UAENORTH,
+    UKSOUTH,
+    BRAZILSOUTH,
+    SOUTHEASTASIA,
+    JAPANEAST,
+    NORTHEUROPE
+}

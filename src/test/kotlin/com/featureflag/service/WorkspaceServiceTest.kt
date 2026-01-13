@@ -30,6 +30,7 @@ class WorkspaceServiceTest {
             id = UUID.randomUUID(),
             name = "Workspace 1",
             type = "development",
+            region = null,
             createdAt = LocalDateTime.now(),
             updatedAt = LocalDateTime.now()
         )
@@ -37,6 +38,7 @@ class WorkspaceServiceTest {
             id = UUID.randomUUID(),
             name = "Workspace 2",
             type = "production",
+            region = null,
             createdAt = LocalDateTime.now(),
             updatedAt = LocalDateTime.now()
         )
@@ -57,6 +59,7 @@ class WorkspaceServiceTest {
             id = workspaceId,
             name = "Test Workspace",
             type = "test",
+            region = null,
             createdAt = LocalDateTime.now(),
             updatedAt = LocalDateTime.now()
         )
@@ -97,6 +100,7 @@ class WorkspaceServiceTest {
             id = workspaceId,
             name = "Test Workspace",
             type = "test",
+            region = null,
             createdAt = LocalDateTime.now(),
             updatedAt = LocalDateTime.now()
         )
@@ -117,6 +121,7 @@ class WorkspaceServiceTest {
             id = workspaceId,
             name = specialName,
             type = "test",
+            region = null,
             createdAt = LocalDateTime.now(),
             updatedAt = LocalDateTime.now()
         )

@@ -29,6 +29,10 @@ data class FeatureFlag(
     @Max(100)
     val rolloutPercentage: Int,
 
+    @Enumerated(EnumType.STRING)
+    @Column(name = "region", nullable = false)
+    val region: Region = Region.ALL,
+
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
     val createdAt: LocalDateTime? = null,
@@ -37,4 +41,3 @@ data class FeatureFlag(
     @Column(name = "updated_at", nullable = false)
     val updatedAt: LocalDateTime? = null
 )
-

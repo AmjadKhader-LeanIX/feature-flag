@@ -27,6 +27,7 @@ class WorkspaceService(
             id = this.id,
             name = this.name,
             type = this.type,
+            region = this.region?.name,
             createdAt = this.createdAt,
             updatedAt = this.updatedAt
         )

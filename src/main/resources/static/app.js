@@ -215,13 +215,14 @@ const FeatureFlagFormComponent = {
                     placeholder="Enter feature flag name"
                     :disabled="isEdit"
                 />
-
+            </div>
             <div class="form-group">
                 <label for="flag-description">Description</label>
                 <textarea
                     id="flag-description"
                     v-model="form.description"
                     placeholder="Enter description (optional)"
+                    :disabled="isEdit"
                 ></textarea>
             </div>
             <div class="form-group">
@@ -232,7 +233,26 @@ const FeatureFlagFormComponent = {
                     type="text"
                     required
                     placeholder="Enter team name"
+                    :disabled="isEdit"
                 />
+            </div>
+            <div v-if="!isEdit" class="form-group">
+                <label for="flag-region">Region *</label>
+                <select id="flag-region" v-model="form.region" required>
+                    <option value="ALL">ALL (All Regions)</option>
+                    <option value="WESTEUROPE">West Europe</option>
+                    <option value="EASTUS">East US</option>
+                    <option value="CANADACENTRAL">Canada Central</option>
+                    <option value="AUSTRALIAEAST">Australia East</option>
+                    <option value="GERMANYWESTCENTRAL">Germany West Central</option>
+                    <option value="SWITZERLANDNORTH">Switzerland North</option>
+                    <option value="UAENORTH">UAE North</option>
+                    <option value="UKSOUTH">UK South</option>
+                    <option value="BRAZILSOUTH">Brazil South</option>
+                    <option value="SOUTHEASTASIA">Southeast Asia</option>
+                    <option value="JAPANEAST">Japan East</option>
+                    <option value="NORTHEUROPE">North Europe</option>
+                </select>
             </div>
             <div v-if="isEdit" class="form-group">
                 <label for="flag-rollout">Rollout Percentage</label>
@@ -263,6 +283,7 @@ const FeatureFlagFormComponent = {
                 name: '',
                 description: '',
                 team: '',
+                region: 'ALL',
                 rolloutPercentage: 0
             }
         };
@@ -275,11 +296,13 @@ const FeatureFlagFormComponent = {
                     this.form.name = newFlag.name || '';
                     this.form.description = newFlag.description || '';
                     this.form.team = newFlag.team || '';
+                    this.form.region = newFlag.region || 'ALL';
                     this.form.rolloutPercentage = newFlag.rolloutPercentage || 0;
                 } else {
                     this.form.name = '';
                     this.form.description = '';
                     this.form.team = '';
+                    this.form.region = 'ALL';
                     this.form.rolloutPercentage = 0;
                 }
             }
@@ -291,6 +314,7 @@ const FeatureFlagFormComponent = {
                 name: this.form.name,
                 description: this.form.description || null,
                 team: this.form.team,
+                region: this.form.region,
                 rolloutPercentage: this.isEdit ? this.form.rolloutPercentage : 0
             };
             this.$emit('submit', data);
@@ -560,6 +584,7 @@ const App = {
             workspaceId: '',
             userWorkspaceId: '',
             team: '',
+            region: '',
         });
 
         // Modal states
@@ -622,13 +647,21 @@ const App = {
                 const matchesTeam = !filters.team ||
                     flag.team.toLowerCase().includes(filters.team.toLowerCase());
 
-                return matchesSearch && matchesTeam;
+                const matchesRegion = !filters.region ||
+                    flag.region === filters.region;
+
+                return matchesSearch && matchesTeam && matchesRegion;
             });
         });
 
         const uniqueTeams = computed(() => {
             const teams = [...new Set(featureFlags.value.map(flag => flag.team))];
             return teams.sort();
+        });
+
+        const uniqueRegions = computed(() => {
+            const regions = [...new Set(featureFlags.value.map(flag => flag.region))];
+            return regions.sort();
         });
 
         // Methods
@@ -835,6 +868,7 @@ const App = {
             filteredWorkspaces,
             filteredFeatureFlags,
             uniqueTeams,
+            uniqueRegions,
 
             // Methods
             showToast,
@@ -967,10 +1001,10 @@ const App = {
                                         {{ team }}
                                     </option>
                                 </select>
-                                <select v-model="filters.workspaceId" class="form-select">
-                                    <option value="">All Workspaces</option>
-                                    <option v-for="workspace in workspaces" :key="workspace.id" :value="workspace.id">
-                                        {{ workspace.name }}
+                                <select v-model="filters.region" class="form-select">
+                                    <option value="">All Regions</option>
+                                    <option v-for="region in uniqueRegions" :key="region" :value="region">
+                                        {{ region === 'ALL' ? 'ALL (All Regions)' : region }}
                                     </option>
                                 </select>
                                 <button class="btn btn-primary" @click="createFeatureFlag">
@@ -1001,6 +1035,10 @@ const App = {
                                             <div class="grid-meta">
                                                 <span>Team: {{ flag.team }}</span>
                                                 <span>Rollout: {{ flag.rolloutPercentage }}%</span>
+                                                <span :class="['badge', flag.region === 'ALL' ? 'badge-info' : 'badge-warning']">
+                                                    <i class="fas fa-globe"></i>
+                                                    {{ flag.region }}
+                                                </span>
                                             </div>
                                             <div class="progress-bar">
                                                 <div class="progress-fill" :style="{ width: flag.rolloutPercentage + '%' }"></div>

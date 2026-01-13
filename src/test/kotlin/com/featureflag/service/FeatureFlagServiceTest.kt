@@ -3,6 +3,7 @@ package com.featureflag.service
 import com.featureflag.dto.CreateFeatureFlagRequest
 import com.featureflag.dto.UpdateFeatureFlagRequest
 import com.featureflag.entity.FeatureFlag
+import com.featureflag.entity.Region
 import com.featureflag.entity.Workspace
 import com.featureflag.entity.WorkspaceFeatureFlag
 import com.featureflag.exception.ResourceNotFoundException
@@ -129,7 +130,7 @@ class FeatureFlagServiceTest {
 
     @Test
     fun `should create feature flag successfully`() {
-        val request = CreateFeatureFlagRequest("new-flag", "description", "team1", 50)
+        val request = CreateFeatureFlagRequest("new-flag", "description", "team1", "ALL", 50)
         val savedFeatureFlag = createMockFeatureFlag("new-flag", "team1")
 
         every { featureFlagRepository.existsByTeamAndName("team1", "new-flag") } returns false
@@ -147,7 +148,7 @@ class FeatureFlagServiceTest {
 
     @Test
     fun `should throw exception when creating feature flag with existing name in same team`() {
-        val request = CreateFeatureFlagRequest("existing-flag", "description", "team1", 50)
+        val request = CreateFeatureFlagRequest("existing-flag", "description", "team1", "ALL", 50)
         every { featureFlagRepository.existsByTeamAndName("team1", "existing-flag") } returns true
 
         assertThrows<IllegalArgumentException> {
@@ -160,7 +161,7 @@ class FeatureFlagServiceTest {
     fun `should update feature flag successfully`() {
         val flagId = UUID.randomUUID()
         val existingFlag = createMockFeatureFlag("old-flag", "team1", flagId)
-        val request = UpdateFeatureFlagRequest("new-flag", "new description", "team1", 75)
+        val request = UpdateFeatureFlagRequest("new-flag", "new description", "team1", "ALL", 75)
         val updatedFlag = createMockFeatureFlag("new-flag", "team1", flagId).copy(rolloutPercentage = 75)
 
         every { featureFlagRepository.findById(flagId) } returns Optional.of(existingFlag)
@@ -181,7 +182,7 @@ class FeatureFlagServiceTest {
     fun `should throw exception when updating to existing name in same team`() {
         val flagId = UUID.randomUUID()
         val existingFlag = createMockFeatureFlag("old-flag", "team1", flagId)
-        val request = UpdateFeatureFlagRequest("existing-flag", "description", "team1", 75)
+        val request = UpdateFeatureFlagRequest("existing-flag", "description", "team1", "ALL", 75)
 
         every { featureFlagRepository.findById(flagId) } returns Optional.of(existingFlag)
         every { featureFlagRepository.existsByTeamAndName("team1", "existing-flag") } returns true
@@ -197,7 +198,7 @@ class FeatureFlagServiceTest {
     fun `should allow updating feature flag with same name`() {
         val flagId = UUID.randomUUID()
         val existingFlag = createMockFeatureFlag("same-flag", "team1", flagId)
-        val request = UpdateFeatureFlagRequest("same-flag", "updated description", "team1", 80)
+        val request = UpdateFeatureFlagRequest("same-flag", "updated description", "team1", "ALL", 80)
         val updatedFlag = createMockFeatureFlag("same-flag", "team1", flagId).copy(rolloutPercentage = 80)
 
         every { featureFlagRepository.findById(flagId) } returns Optional.of(existingFlag)
@@ -217,7 +218,7 @@ class FeatureFlagServiceTest {
     @Test
     fun `should throw exception when updating non-existent feature flag`() {
         val flagId = UUID.randomUUID()
-        val request = UpdateFeatureFlagRequest("flag", "description", "team1", 50)
+        val request = UpdateFeatureFlagRequest("flag", "description", "team1", "ALL", 50)
         every { featureFlagRepository.findById(flagId) } returns Optional.empty()
 
         assertThrows<ResourceNotFoundException> {
@@ -266,7 +267,7 @@ class FeatureFlagServiceTest {
     @ValueSource(ints = [0, 10, 35, 70, 100])
     fun `should handle rollout percentage boundary values`(rolloutPercentage: Int) {
         if (rolloutPercentage == 0) {
-            val request = CreateFeatureFlagRequest("zero-flag", "description", "team1", 0)
+            val request = CreateFeatureFlagRequest("zero-flag", "description", "team1", "ALL", 0)
             val savedFeatureFlag = createMockFeatureFlag("zero-flag", "team1").copy(rolloutPercentage = 0)
 
             every { featureFlagRepository.existsByTeamAndName("team1", "zero-flag") } returns false
@@ -280,7 +281,7 @@ class FeatureFlagServiceTest {
         } else {
             val flagId = UUID.randomUUID()
             val existingFlag = createMockFeatureFlag("flag", "team1", flagId)
-            val request = UpdateFeatureFlagRequest("flag", "description", "team1", 100)
+            val request = UpdateFeatureFlagRequest("flag", "description", "team1", "ALL", 100)
             val updatedFlag = createMockFeatureFlag("flag", "team1", flagId).copy(rolloutPercentage = 100)
             val workspaceFeatureFlag = WorkspaceFeatureFlag(
                 id = UUID.randomUUID(),
@@ -309,6 +310,7 @@ class FeatureFlagServiceTest {
             description = "Test description",
             team = team,
             rolloutPercentage = 50,
+            region = Region.ALL,
             createdAt = LocalDateTime.now(),
             updatedAt = LocalDateTime.now()
         )
@@ -342,7 +344,7 @@ class FeatureFlagServiceTest {
 
         val originalEnabledWorkspaceIds = workspaceFeatureFlags.filter { it.isEnabled }.map { it.workspace.id }.toSet()
 
-        val request = UpdateFeatureFlagRequest("flag", "description", "team1", newPercentage)
+        val request = UpdateFeatureFlagRequest("flag", "description", "team1", "ALL", newPercentage)
         val updatedFlag = existingFlag.copy(rolloutPercentage = newPercentage)
 
         every { featureFlagRepository.findById(flagId) } returns Optional.of(existingFlag)
@@ -389,6 +391,7 @@ class FeatureFlagServiceTest {
             id = id,
             name = "Test Workspace",
             type = "test",
+            region = null,
             createdAt = LocalDateTime.now(),
             updatedAt = LocalDateTime.now()
         )

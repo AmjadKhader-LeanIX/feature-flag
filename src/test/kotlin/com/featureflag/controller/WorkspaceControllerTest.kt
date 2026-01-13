@@ -35,6 +35,7 @@ class WorkspaceControllerTest {
                 id = UUID.randomUUID(),
                 name = "Test Workspace 1",
                 type = "Development",
+                region = null,
                 createdAt = null,
                 updatedAt = null
             ),
@@ -42,6 +43,7 @@ class WorkspaceControllerTest {
                 id = UUID.randomUUID(),
                 name = "Test Workspace 2",
                 type = "Production",
+                region = null,
                 createdAt = null,
                 updatedAt = null
             )
@@ -60,6 +62,7 @@ class WorkspaceControllerTest {
             id = workspaceId,
             name = "Test Workspace",
             type = "Development",
+            region = null,
             createdAt = null,
             updatedAt = null
         )
@@ -110,6 +113,7 @@ class WorkspaceControllerTest {
             id = workspaceId,
             name = specialName,
             type = "Development",
+            region = null,
             createdAt = null,
             updatedAt = null
         )
@@ -135,6 +139,7 @@ class WorkspaceControllerTest {
             id = UUID.randomUUID(),
             name = "Workspace 1",
             type = "Development",
+            region = null,
             createdAt = null,
             updatedAt = null
         )
@@ -142,6 +147,7 @@ class WorkspaceControllerTest {
             id = UUID.randomUUID(),
             name = "Workspace 2",
             type = "Production",
+            region = null,
             createdAt = null,
             updatedAt = null
         )

@@ -4,6 +4,7 @@ import com.featureflag.dto.CreateFeatureFlagRequest
 import com.featureflag.dto.FeatureFlagDto
 import com.featureflag.dto.UpdateFeatureFlagRequest
 import com.featureflag.entity.FeatureFlag
+import com.featureflag.entity.Region
 import com.featureflag.entity.WorkspaceFeatureFlag
 import com.featureflag.exception.ResourceNotFoundException
 import com.featureflag.repository.FeatureFlagRepository
@@ -53,11 +54,12 @@ class FeatureFlagService(
             name = request.name,
             description = request.description,
             team = request.team,
-            rolloutPercentage = request.rolloutPercentage
+            rolloutPercentage = request.rolloutPercentage,
+            region = Region.valueOf(request.region)
         )
         val savedFeatureFlag = featureFlagRepository.save(featureFlag)
 
-        updateFeatureFlagRollout(savedFeatureFlag, request.rolloutPercentage)
+        updateFeatureFlagRollout(savedFeatureFlag)
 
         return savedFeatureFlag.toDto()
     }
@@ -77,11 +79,12 @@ class FeatureFlagService(
             name = request.name,
             description = request.description,
             team = request.team,
-            rolloutPercentage = request.rolloutPercentage
+            rolloutPercentage = request.rolloutPercentage,
+            region = Region.valueOf(request.region)
         )
         val savedFeatureFlag = featureFlagRepository.save(updatedFeatureFlag)
 
-        updateFeatureFlagRollout(savedFeatureFlag, request.rolloutPercentage)
+        updateFeatureFlagRollout(savedFeatureFlag)
 
         return savedFeatureFlag.toDto()
     }
@@ -98,145 +101,44 @@ class FeatureFlagService(
         return featureFlagRepository.findByNameContainingIgnoreCase(name).map { it.toDto() }
     }
 
-    private fun enableFeatureFlagByPercentage(
-        featureFlag: FeatureFlag,
-        rolloutPercentage: Int
-    ) {
-        val allWorkspaceFeatureFlags = workspaceFeatureFlagRepository.findByFeatureFlag(featureFlag)
-
-        // First, disable feature flag for all existing workspace-feature flag associations
-        val disabledFlags = allWorkspaceFeatureFlags.map { existing ->
-            WorkspaceFeatureFlag(
-                id = existing.id,
-                workspace = existing.workspace,
-                featureFlag = existing.featureFlag,
-                isEnabled = false
-            )
-        }
-        if (disabledFlags.isNotEmpty()) {
-            workspaceFeatureFlagRepository.saveAll(disabledFlags)
-        }
-
-        if (rolloutPercentage == 0) return
-        if (rolloutPercentage == 100) {
-            val enabledFlags = workspaceFeatureFlagRepository.findByFeatureFlag(featureFlag).map { existing ->
-                WorkspaceFeatureFlag(
-                    id = existing.id,
-                    workspace = existing.workspace,
-                    featureFlag = existing.featureFlag,
-                    isEnabled = true
-                )
-            }
-            workspaceFeatureFlagRepository.saveAll(enabledFlags)
-            return
-        }
-
-        val workspacesToEnable = mutableListOf<WorkspaceFeatureFlag>()
-
-        allWorkspaceFeatureFlags.forEach { workspaceFeatureFlag ->
-            val workspaceId = workspaceFeatureFlag.workspace.id!!
-            val hash = abs((featureFlag.id.toString() + workspaceId.toString()).hashCode())
-            val bucket = hash % 100
-
-            if (bucket < rolloutPercentage) {
-                workspacesToEnable.add(
-                    WorkspaceFeatureFlag(
-                        id = workspaceFeatureFlag.id,
-                        workspace = workspaceFeatureFlag.workspace,
-                        featureFlag = workspaceFeatureFlag.featureFlag,
-                        isEnabled = true
-                    )
-                )
-            }
-        }
-
-        if (workspacesToEnable.isNotEmpty()) {
-            workspaceFeatureFlagRepository.saveAll(workspacesToEnable)
-        }
-    }
-
     /**
-     * Updates the rollout of a feature flag across all workspaces based on the new percentage.
+     * Updates the rollout of a feature flag based on region matching and percentage.
      *
-     * This method ensures two critical guarantees:
-     * 1. When INCREASING percentage: Previously enabled workspaces stay enabled
-     * 2. When DECREASING percentage: Some enabled workspaces are disabled
-     *
-     * How it works:
-     * - Uses deterministic hashing to assign each workspace to a "bucket" (0-99)
-     * - The same workspace-feature flag combination always produces the same bucket
-     * - Workspaces with bucket < newPercentage are enabled, others are disabled
-     *
-     * Example with 1000 workspaces:
-     * - At 30%: Workspaces in buckets 0-29 (~300 workspaces) are enabled
-     * - Increase to 50%: Buckets 0-29 stay enabled + buckets 30-49 get enabled (~500 total)
-     * - Decrease to 20%: Only buckets 0-19 stay enabled (~200 total), buckets 20-29 get disabled
-     *
-     * @param featureFlag The feature flag being updated
-     * @param newPercentage The new rollout percentage (0-100)
+     * Logic:
+     * - If feature flag region is INTERNATIONAL, apply to all workspaces
+     * - Otherwise, only apply to workspaces with matching region
+     * - Uses deterministic hashing to assign workspaces to buckets for consistent rollout
      */
-    private fun updateFeatureFlagRollout(
-        featureFlag: FeatureFlag,
-        newPercentage: Int
-    ) {
-        // Load all existing workspace-feature flag associations for this feature flag
+    private fun updateFeatureFlagRollout(featureFlag: FeatureFlag) {
         val allWorkspaceFeatureFlags = workspaceFeatureFlagRepository.findByFeatureFlag(featureFlag)
-
-        // Case 1: 0% rollout means disable all workspaces
-        if (newPercentage == 0) {
-            val disabledFlags = allWorkspaceFeatureFlags.map { existing ->
-                WorkspaceFeatureFlag(
-                    id = existing.id,
-                    workspace = existing.workspace,
-                    featureFlag = existing.featureFlag,
-                    isEnabled = false
-                )
-            }
-            if (disabledFlags.isNotEmpty()) {
-                workspaceFeatureFlagRepository.saveAll(disabledFlags)
-            }
-            return
-        }
-
-        // Case 2: 100% rollout means enable all workspaces
-        if (newPercentage == 100) {
-            val enabledFlags = allWorkspaceFeatureFlags.map { existing ->
-                WorkspaceFeatureFlag(
-                    id = existing.id,
-                    workspace = existing.workspace,
-                    featureFlag = existing.featureFlag,
-                    isEnabled = true
-                )
-            }
-            workspaceFeatureFlagRepository.saveAll(enabledFlags)
-            return
-        }
-
-        // For percentage between 1-99, use deterministic bucket assignment
         val workspacesToUpdate = mutableListOf<WorkspaceFeatureFlag>()
 
         allWorkspaceFeatureFlags.forEach { workspaceFeatureFlag ->
-            val workspaceId = workspaceFeatureFlag.workspace.id!!
+            val workspace = workspaceFeatureFlag.workspace
 
-            // Calculate a deterministic hash for this workspace-feature flag combination
-            // The hash will always be the same for this specific combination
-            val hash = abs((featureFlag.id.toString() + workspaceId.toString()).hashCode())
+            // Determine if this workspace matches the feature flag's region
+            val isRegionMatch = when (featureFlag.region) {
+                Region.ALL -> true  // ALL flags apply to all workspaces
+                else -> workspace.region == featureFlag.region  // Specific region must match
+            }
 
-            // Map the hash to a bucket (0-99) using modulo operation
-            // This distributes workspaces evenly across 100 buckets
-            val bucket = hash % 100
+            // Calculate whether workspace should be enabled
+            val shouldBeEnabled = if (isRegionMatch) {
+                when (featureFlag.rolloutPercentage) {
+                    0 -> false
+                    100 -> true
+                    else -> {
+                        // Use deterministic hashing for percentage-based rollout
+                        val hash = abs((featureFlag.id.toString() + workspace.id.toString()).hashCode())
+                        val bucket = hash % 100
+                        bucket < featureFlag.rolloutPercentage
+                    }
+                }
+            } else {
+                false  // Region doesn't match, disable
+            }
 
-            // Determine if this workspace should be enabled based on its bucket
-            // If bucket < newPercentage, it should be enabled
-            // Example: At 30% rollout, buckets 0-29 should be enabled (30 out of 100 buckets)
-            val shouldBeEnabled = bucket < newPercentage
-
-            // Only update workspaces where the state needs to change
-            // This ensures:
-            // - On increase (e.g., 30% → 50%): Workspaces in buckets 0-29 stay enabled (no update needed),
-            //   workspaces in buckets 30-49 get enabled (update needed)
-            // - On decrease (e.g., 50% → 30%): Workspaces in buckets 0-29 stay enabled (no update needed),
-            //   workspaces in buckets 30-49 get disabled (update needed)
+            // Only update if state needs to change
             if (workspaceFeatureFlag.isEnabled != shouldBeEnabled) {
                 workspacesToUpdate.add(
                     WorkspaceFeatureFlag(
@@ -249,7 +151,6 @@ class FeatureFlagService(
             }
         }
 
-        // Batch update all workspaces that need state changes
         if (workspacesToUpdate.isNotEmpty()) {
             workspaceFeatureFlagRepository.saveAll(workspacesToUpdate)
         }
@@ -261,7 +162,10 @@ class FeatureFlagService(
             name = this.name,
             description = this.description,
             team = this.team,
-            rolloutPercentage = this.rolloutPercentage
+            rolloutPercentage = this.rolloutPercentage,
+            region = this.region.name,
+            createdAt = this.createdAt,
+            updatedAt = this.updatedAt
         )
     }
 }

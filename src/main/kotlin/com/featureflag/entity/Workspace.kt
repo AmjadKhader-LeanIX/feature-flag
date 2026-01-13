@@ -19,6 +19,10 @@ data class Workspace(
     @Column(name = "type")
     val type: String?,
 
+    @Enumerated(EnumType.STRING)
+    @Column(name = "region")
+    val region: Region?,
+
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
     val createdAt: LocalDateTime? = null,
@@ -30,4 +34,3 @@ data class Workspace(
     @OneToMany(mappedBy = "workspace", cascade = [CascadeType.ALL], fetch = FetchType.LAZY)
     val workspaceFeatureFlags: List<WorkspaceFeatureFlag> = emptyList(),
 )
-
