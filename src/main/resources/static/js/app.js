@@ -281,7 +281,7 @@ const App = {
             <nav class="navbar">
                 <div class="nav-container">
                     <div class="nav-brand">
-                        <i class="fas fa-flag"></i>
+                        <img src="https://www.leanix.net/hubfs/2024-Website/branding/logo/favicon/256x256.svg" alt="SAP LeanIX" style="height: 48px; margin-right: 16px; object-fit: contain;" />
                         <span>Feature Flag Manager</span>
                     </div>
                     <div class="nav-menu">
@@ -349,15 +349,6 @@ const App = {
                                 <div>
                                     <div class="stat-number">{{ uniqueTeams.length }}</div>
                                     <div class="stat-label">Teams</div>
-                                </div>
-                            </div>
-                            <div class="stat-card">
-                                <div class="stat-icon" style="background: linear-gradient(135deg, var(--warning-color), #d97706);">
-                                    <i class="fas fa-history"></i>
-                                </div>
-                                <div>
-                                    <div class="stat-number">{{ auditLogs.length }}</div>
-                                    <div class="stat-label">Audit Logs</div>
                                 </div>
                             </div>
                         </div>
