@@ -39,6 +39,8 @@ const App = {
             selectedAuditLog: null,
         });
 
+        const formLoading = ref(false);
+
         const toast = reactive({
             visible: false,
             message: '',
@@ -155,6 +157,7 @@ const App = {
 
         const submitFeatureFlag = async (data) => {
             try {
+                formLoading.value = true;
                 if (editingItems.featureFlag) {
                     await apiService.updateFeatureFlag(editingItems.featureFlag.id, data);
                     showToast('Feature flag updated successfully', 'success');
@@ -169,6 +172,8 @@ const App = {
                 }
             } catch (error) {
                 showToast(error.message, 'error');
+            } finally {
+                formLoading.value = false;
             }
         };
 
@@ -253,6 +258,7 @@ const App = {
             modals,
             editingItems,
             toast,
+            formLoading,
             filteredFeatureFlags,
             filteredAuditLogs,
             uniqueTeams,
@@ -562,6 +568,7 @@ const App = {
                 <FeatureFlagFormComponent
                     :feature-flag="editingItems.featureFlag"
                     :is-edit="!!editingItems.featureFlag"
+                    :loading="formLoading"
                     @submit="submitFeatureFlag"
                     @cancel="modals.featureFlag = false"
                 />

@@ -9,7 +9,7 @@ const FeatureFlagFormComponent = {
                     type="text"
                     required
                     placeholder="Enter feature flag name"
-                    :disabled="isEdit"
+                    :disabled="isEdit || loading"
                 />
             </div>
             <div class="form-group">
@@ -18,7 +18,7 @@ const FeatureFlagFormComponent = {
                     id="flag-description"
                     v-model="form.description"
                     placeholder="Enter description (optional)"
-                    :disabled="isEdit"
+                    :disabled="isEdit || loading"
                 ></textarea>
             </div>
             <div class="form-group">
@@ -29,22 +29,22 @@ const FeatureFlagFormComponent = {
                     type="text"
                     required
                     placeholder="Enter team name"
-                    :disabled="isEdit"
+                    :disabled="isEdit || loading"
                 />
             </div>
             <div v-if="!isEdit" class="form-group">
                 <label>Regions *</label>
                 <div style="max-height: 200px; overflow-y: auto; border: 1px solid #ddd; padding: 10px; border-radius: 4px;">
                     <label class="checkbox-label" style="display: block; margin-bottom: 8px;">
-                        <input type="checkbox" value="ALL" v-model="form.regions" />
+                        <input type="checkbox" value="ALL" v-model="form.regions" :disabled="loading" />
                         ALL (All Regions)
                     </label>
                     <label class="checkbox-label" style="display: block; margin-bottom: 8px;">
-                        <input type="checkbox" value="WESTEUROPE" v-model="form.regions" :disabled="form.regions.includes('ALL')" />
+                        <input type="checkbox" value="WESTEUROPE" v-model="form.regions" :disabled="form.regions.includes('ALL') || loading" />
                         West Europe
                     </label>
                     <label class="checkbox-label" style="display: block; margin-bottom: 8px;">
-                        <input type="checkbox" value="EASTUS" v-model="form.regions" :disabled="form.regions.includes('ALL')" />
+                        <input type="checkbox" value="EASTUS" v-model="form.regions" :disabled="form.regions.includes('ALL') || loading" />
                         East US
                     </label>
                 </div>
@@ -59,19 +59,21 @@ const FeatureFlagFormComponent = {
                         type="range"
                         min="0"
                         max="100"
+                        :disabled="loading"
                     />
                     <span class="rollout-display">{{ form.rolloutPercentage }}%</span>
                 </div>
             </div>
             <div class="modal-actions">
-                <button type="button" class="btn btn-secondary" @click="cancel">Cancel</button>
-                <button type="submit" class="btn btn-primary" :disabled="!isEdit && form.regions.length === 0">
-                    {{ isEdit ? 'Update' : 'Create' }}
+                <button type="button" class="btn btn-secondary" @click="cancel" :disabled="loading">Cancel</button>
+                <button type="submit" class="btn btn-primary" :disabled="(!isEdit && form.regions.length === 0) || loading">
+                    <i v-if="loading" class="fas fa-spinner fa-spin" style="margin-right: 8px;"></i>
+                    {{ loading ? 'Processing...' : (isEdit ? 'Update' : 'Create') }}
                 </button>
             </div>
         </form>
     `,
-    props: ['featureFlag', 'isEdit'],
+    props: ['featureFlag', 'isEdit', 'loading'],
     emits: ['submit', 'cancel'],
     data() {
         return {
