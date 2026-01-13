@@ -19,7 +19,8 @@ import kotlin.math.abs
 class FeatureFlagService(
     private val featureFlagRepository: FeatureFlagRepository,
     private val workspaceRepository: WorkspaceRepository,
-    private val workspaceFeatureFlagRepository: WorkspaceFeatureFlagRepository
+    private val workspaceFeatureFlagRepository: WorkspaceFeatureFlagRepository,
+    private val auditLogService: AuditLogService
 ) {
 
     fun getAllFeatureFlags(): List<FeatureFlagDto> {
@@ -62,6 +63,9 @@ class FeatureFlagService(
 
         updateFeatureFlagRollout(savedFeatureFlag)
 
+        // Log the creation
+        auditLogService.logCreate(savedFeatureFlag)
+
         return savedFeatureFlag.toDto()
     }
 
@@ -70,6 +74,7 @@ class FeatureFlagService(
         val featureFlag = featureFlagRepository.findById(id)
             .orElseThrow { ResourceNotFoundException("Feature flag not found with id: $id") }
 
+        val oldRolloutPercentage = featureFlag.rolloutPercentage
         if (featureFlagRepository.existsByTeamAndName(featureFlag.team, request.name) &&
             featureFlag.name != request.name
         ) {
@@ -88,14 +93,20 @@ class FeatureFlagService(
 
         updateFeatureFlagRollout(savedFeatureFlag)
 
+        // Log the update
+        auditLogService.logUpdate(oldRolloutPercentage, savedFeatureFlag.rolloutPercentage, savedFeatureFlag)
+
         return savedFeatureFlag.toDto()
     }
 
     @Transactional
     fun deleteFeatureFlag(id: UUID) {
-        if (!featureFlagRepository.existsById(id)) {
-            throw ResourceNotFoundException("Feature flag not found with id: $id")
-        }
+        val featureFlag = featureFlagRepository.findById(id)
+            .orElseThrow { ResourceNotFoundException("Feature flag not found with id: $id") }
+
+        // Log the deletion before deleting
+        auditLogService.logDelete(featureFlag)
+
         featureFlagRepository.deleteById(id)
     }
 

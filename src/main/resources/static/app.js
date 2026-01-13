@@ -23,31 +23,6 @@ const apiService = {
         }
     },
 
-    // Workspace API
-    getWorkspaces() {
-        return this.request('/workspaces');
-    },
-
-    createWorkspace(data) {
-        return this.request('/workspaces', {
-            method: 'POST',
-            data
-        });
-    },
-
-    updateWorkspace(id, data) {
-        return this.request(`/workspaces/${id}`, {
-            method: 'PUT',
-            data
-        });
-    },
-
-    deleteWorkspace(id) {
-        return this.request(`/workspaces/${id}`, {
-            method: 'DELETE'
-        });
-    },
-
     // Feature Flag API
     getFeatureFlags() {
         return this.request('/feature-flags');
@@ -55,10 +30,6 @@ const apiService = {
 
     getFeatureFlagsByTeam(team) {
         return this.request(`/feature-flags/team/${encodeURIComponent(team)}`);
-    },
-
-    getFeatureFlagsByWorkspace(workspaceId) {
-        return this.request(`/feature-flags/workspace/${workspaceId}`);
     },
 
     createFeatureFlag(data) {
@@ -79,6 +50,16 @@ const apiService = {
         return this.request(`/feature-flags/${id}`, {
             method: 'DELETE'
         });
+    },
+
+    // Audit Log API
+    getAuditLogs(params = {}) {
+        const queryString = new URLSearchParams(params).toString();
+        return this.request(`/audit-logs${queryString ? '?' + queryString : ''}`);
+    },
+
+    getAuditLogsByFeatureFlagId(featureFlagId) {
+        return this.request(`/audit-logs/feature-flag/${featureFlagId}`);
     },
 };
 
@@ -116,9 +97,6 @@ const ModalComponent = {
                     <div class="modal-content">
                         <slot></slot>
                     </div>
-                    <div v-if="$slots.actions" class="modal-actions">
-                        <slot name="actions"></slot>
-                    </div>
                 </div>
             </div>
         </Transition>
@@ -128,75 +106,6 @@ const ModalComponent = {
     methods: {
         closeModal() {
             this.$emit('close');
-        }
-    }
-};
-
-// Workspace Form Component
-const WorkspaceFormComponent = {
-    template: `
-        <form @submit.prevent="submit">
-            <div class="form-group">
-                <label for="workspace-name">Name *</label>
-                <input
-                    id="workspace-name"
-                    v-model="form.name"
-                    type="text"
-                    required
-                    placeholder="Enter workspace name"
-                />
-            </div>
-            <div class="form-group">
-                <label for="workspace-type">Type</label>
-                <input
-                    id="workspace-type"
-                    v-model="form.type"
-                    type="text"
-                    placeholder="Enter workspace type (optional)"
-                />
-            </div>
-            <div class="modal-actions">
-                <button type="button" class="btn btn-secondary" @click="cancel">Cancel</button>
-                <button type="submit" class="btn btn-primary">
-                    {{ isEdit ? 'Update' : 'Create' }}
-                </button>
-            </div>
-        </form>
-    `,
-    props: ['workspace', 'isEdit'],
-    emits: ['submit', 'cancel'],
-    data() {
-        return {
-            form: {
-                name: '',
-                type: ''
-            }
-        };
-    },
-    watch: {
-        workspace: {
-            immediate: true,
-            handler(newWorkspace) {
-                if (newWorkspace) {
-                    this.form.name = newWorkspace.name || '';
-                    this.form.type = newWorkspace.type || '';
-                } else {
-                    this.form.name = '';
-                    this.form.type = '';
-                }
-            }
-        }
-    },
-    methods: {
-        submit() {
-            const data = {
-                name: this.form.name,
-                type: this.form.type || null
-            };
-            this.$emit('submit', data);
-        },
-        cancel() {
-            this.$emit('cancel');
         }
     }
 };
@@ -250,46 +159,6 @@ const FeatureFlagFormComponent = {
                     <label class="checkbox-label" style="display: block; margin-bottom: 8px;">
                         <input type="checkbox" value="EASTUS" v-model="form.regions" :disabled="form.regions.includes('ALL')" />
                         East US
-                    </label>
-                    <label class="checkbox-label" style="display: block; margin-bottom: 8px;">
-                        <input type="checkbox" value="CANADACENTRAL" v-model="form.regions" :disabled="form.regions.includes('ALL')" />
-                        Canada Central
-                    </label>
-                    <label class="checkbox-label" style="display: block; margin-bottom: 8px;">
-                        <input type="checkbox" value="AUSTRALIAEAST" v-model="form.regions" :disabled="form.regions.includes('ALL')" />
-                        Australia East
-                    </label>
-                    <label class="checkbox-label" style="display: block; margin-bottom: 8px;">
-                        <input type="checkbox" value="GERMANYWESTCENTRAL" v-model="form.regions" :disabled="form.regions.includes('ALL')" />
-                        Germany West Central
-                    </label>
-                    <label class="checkbox-label" style="display: block; margin-bottom: 8px;">
-                        <input type="checkbox" value="SWITZERLANDNORTH" v-model="form.regions" :disabled="form.regions.includes('ALL')" />
-                        Switzerland North
-                    </label>
-                    <label class="checkbox-label" style="display: block; margin-bottom: 8px;">
-                        <input type="checkbox" value="UAENORTH" v-model="form.regions" :disabled="form.regions.includes('ALL')" />
-                        UAE North
-                    </label>
-                    <label class="checkbox-label" style="display: block; margin-bottom: 8px;">
-                        <input type="checkbox" value="UKSOUTH" v-model="form.regions" :disabled="form.regions.includes('ALL')" />
-                        UK South
-                    </label>
-                    <label class="checkbox-label" style="display: block; margin-bottom: 8px;">
-                        <input type="checkbox" value="BRAZILSOUTH" v-model="form.regions" :disabled="form.regions.includes('ALL')" />
-                        Brazil South
-                    </label>
-                    <label class="checkbox-label" style="display: block; margin-bottom: 8px;">
-                        <input type="checkbox" value="SOUTHEASTASIA" v-model="form.regions" :disabled="form.regions.includes('ALL')" />
-                        Southeast Asia
-                    </label>
-                    <label class="checkbox-label" style="display: block; margin-bottom: 8px;">
-                        <input type="checkbox" value="JAPANEAST" v-model="form.regions" :disabled="form.regions.includes('ALL')" />
-                        Japan East
-                    </label>
-                    <label class="checkbox-label" style="display: block; margin-bottom: 8px;">
-                        <input type="checkbox" value="NORTHEUROPE" v-model="form.regions" :disabled="form.regions.includes('ALL')" />
-                        North Europe
                     </label>
                 </div>
                 <small v-if="form.regions.length === 0" style="color: red;">Please select at least one region</small>
@@ -349,7 +218,6 @@ const FeatureFlagFormComponent = {
         },
         'form.regions': {
             handler(newRegions) {
-                // If ALL is selected, clear other selections
                 if (newRegions.includes('ALL') && newRegions.length > 1) {
                     this.form.regions = ['ALL'];
                 }
@@ -376,316 +244,50 @@ const FeatureFlagFormComponent = {
     }
 };
 
-// User Form Component
-const UserFormComponent = {
-    template: `
-        <form @submit.prevent="submit">
-            <div class="form-group">
-                <label for="user-workspace">Workspace *</label>
-                <select id="user-workspace" v-model="form.workspaceId" required>
-                    <option value="">Select workspace</option>
-                    <option v-for="workspace in workspaces" :key="workspace.id" :value="workspace.id">
-                        {{ workspace.name }}
-                    </option>
-                </select>
-            </div>
-            <div class="form-group">
-                <label for="user-email">Email</label>
-                <input
-                    id="user-email"
-                    v-model="form.email"
-                    type="email"
-                    placeholder="Enter email address (optional)"
-                />
-            </div>
-            <div class="form-group">
-                <label class="checkbox-label">
-                    <input
-                        v-model="form.isActive"
-                        type="checkbox"
-                    />
-                    Active User
-                </label>
-            </div>
-            <div class="modal-actions">
-                <button type="button" class="btn btn-secondary" @click="cancel">Cancel</button>
-                <button type="submit" class="btn btn-primary">
-                    {{ isEdit ? 'Update' : 'Create' }}
-                </button>
-            </div>
-        </form>
-    `,
-    props: ['user', 'isEdit', 'workspaces'],
-    emits: ['submit', 'cancel'],
-    data() {
-        return {
-            form: {
-                workspaceId: '',
-                email: '',
-                isActive: true
-            }
-        };
-    },
-    watch: {
-        user: {
-            immediate: true,
-            handler(newUser) {
-                if (newUser) {
-                    this.form.workspaceId = newUser.workspaceId || '';
-                    this.form.email = newUser.email || '';
-                    this.form.isActive = newUser.isActive !== false;
-                } else {
-                    this.form.workspaceId = '';
-                    this.form.email = '';
-                    this.form.isActive = true;
-                }
-            }
-        }
-    },
-    methods: {
-        submit() {
-            const data = {
-                workspaceId: this.form.workspaceId,
-                email: this.form.email || null,
-                isActive: this.form.isActive
-            };
-            this.$emit('submit', data);
-        },
-        cancel() {
-            this.$emit('cancel');
-        }
-    }
-};
-
-// Customer Feature Flag Form Component
-const CustomerFeatureFlagFormComponent = {
-    template: `
-        <form @submit.prevent="submit">
-            <div class="form-group">
-                <label for="customer-flag-workspace">Workspace</label>
-                <select id="customer-flag-workspace" v-model="form.workspaceId">
-                    <option value="">Select workspace</option>
-                    <option v-for="workspace in workspaces" :key="workspace.id" :value="workspace.id">
-                        {{ workspace.name }}
-                    </option>
-                </select>
-            </div>
-            <div class="form-group">
-                <label for="customer-flag-customer">Customer ID *</label>
-                <input
-                    id="customer-flag-customer"
-                    v-model="form.customerId"
-                    type="text"
-                    required
-                    placeholder="Enter customer UUID"
-                    :disabled="isEdit"
-                />
-            </div>
-            <div class="form-group">
-                <label for="customer-flag-feature">Feature Flag *</label>
-                <select id="customer-flag-feature" v-model="form.featureFlagId" :disabled="isEdit" required>
-                    <option value="">Select feature flag</option>
-                    <option v-for="flag in featureFlags" :key="flag.id" :value="flag.id">
-                        {{ flag.name }}
-                    </option>
-                </select>
-            </div>
-            <div class="form-group">
-                <label class="checkbox-label">
-                    <input
-                        v-model="form.isEnabled"
-                        type="checkbox"
-                    />
-                    Enabled for Customer
-                </label>
-            </div>
-            <div class="modal-actions">
-                <button type="button" class="btn btn-secondary" @click="cancel">Cancel</button>
-                <button type="submit" class="btn btn-primary">
-                    {{ isEdit ? 'Update' : 'Create' }}
-                </button>
-            </div>
-        </form>
-    `,
-    props: ['customerFlag', 'isEdit', 'workspaces', 'featureFlags'],
-    emits: ['submit', 'cancel'],
-    data() {
-        return {
-            form: {
-                workspaceId: '',
-                customerId: '',
-                featureFlagId: '',
-                isEnabled: false
-            }
-        };
-    },
-    watch: {
-        customerFlag: {
-            immediate: true,
-            handler(newFlag) {
-                if (newFlag) {
-                    this.form.workspaceId = newFlag.workspaceId || '';
-                    this.form.customerId = newFlag.customerId || '';
-                    this.form.featureFlagId = newFlag.featureFlagId || '';
-                    this.form.isEnabled = newFlag.isEnabled || false;
-                } else {
-                    this.form.workspaceId = '';
-                    this.form.customerId = '';
-                    this.form.featureFlagId = '';
-                    this.form.isEnabled = false;
-                }
-            }
-        }
-    },
-    methods: {
-        submit() {
-            const data = {
-                workspaceId: this.form.workspaceId || null,
-                customerId: this.form.customerId,
-                featureFlagId: this.form.featureFlagId,
-                isEnabled: this.form.isEnabled
-            };
-            this.$emit('submit', data);
-        },
-        cancel() {
-            this.$emit('cancel');
-        }
-    }
-};
-
-// Evaluation Modal Component
-const EvaluationModalComponent = {
-    template: `
-        <div class="evaluation-content">
-            <div class="form-group">
-                <label for="evaluation-customer">Customer ID *</label>
-                <input
-                    id="evaluation-customer"
-                    v-model="customerId"
-                    type="text"
-                    placeholder="Enter customer UUID"
-                    required
-                />
-            </div>
-            <button class="btn btn-primary" @click="evaluate" :disabled="!customerId.trim()">
-                Evaluate Flag
-            </button>
-            <div v-if="result" class="evaluation-result">
-                <div :class="['result-status', result.enabled ? 'enabled' : 'disabled']">
-                    {{ result.enabled ? 'ENABLED' : 'DISABLED' }}
-                </div>
-                <div class="result-reason">{{ result.reason }}</div>
-            </div>
-        </div>
-    `,
-    props: ['flagId'],
-    emits: ['close'],
-    data() {
-        return {
-            customerId: '',
-            result: null
-        };
-    },
-    methods: {
-        async evaluate() {
-            if (!this.customerId.trim()) {
-                return;
-            }
-
-            try {
-                this.result = await apiService.evaluateFeatureFlag(this.flagId, this.customerId);
-            } catch (error) {
-                this.$emit('error', error.message);
-            }
-        }
-    }
-};
-
 // Main App
 const App = {
     components: {
         ToastComponent,
         ModalComponent,
-        WorkspaceFormComponent,
-        FeatureFlagFormComponent,
-        UserFormComponent,
-        CustomerFeatureFlagFormComponent,
-        EvaluationModalComponent
+        FeatureFlagFormComponent
     },
 
     setup() {
-        // Reactive data
         const currentTab = ref('dashboard');
         const loading = reactive({
-            workspaces: false,
             featureFlags: false,
+            auditLogs: false,
         });
 
-        // Data stores
-        const workspaces = ref([]);
         const featureFlags = ref([]);
+        const auditLogs = ref([]);
 
-        // Search/filter states
         const searchTerms = reactive({
-            workspace: '',
             featureFlag: '',
+            auditLog: '',
         });
 
         const filters = reactive({
-            workspaceId: '',
-            userWorkspaceId: '',
             team: '',
             region: '',
+            auditFlagId: '',
+            auditOperation: '',
         });
 
-        // Modal states
         const modals = reactive({
-            workspace: false,
             featureFlag: false,
-            evaluation: false
+            auditDetail: false,
         });
 
-        // Form states
         const editingItems = reactive({
-            workspace: null,
             featureFlag: null,
-            evaluationFlagId: null
+            selectedAuditLog: null,
         });
 
-        // Toast state
         const toast = reactive({
             visible: false,
             message: '',
             type: 'info'
-        });
-
-        // Computed properties
-        const dashboardStats = computed(() => ({
-            workspaceCount: workspaces.value.length,
-            featureFlagCount: featureFlags.value.length,
-            activeFlagsCount: featureFlags.value.filter(flag => flag.rolloutPercentage > 0).length
-        }));
-
-        const recentActivity = computed(() => [
-            {
-                icon: 'fas fa-building',
-                title: `${dashboardStats.value.workspaceCount} workspaces configured`,
-                time: 'Current status'
-            },
-            {
-                icon: 'fas fa-flag',
-                title: `${dashboardStats.value.featureFlagCount} feature flags created`,
-                time: 'Current status'
-            }
-        ]);
-
-        const filteredWorkspaces = computed(() => {
-            return workspaces.value.filter(workspace => {
-                const matchesSearch = !searchTerms.workspace ||
-                    workspace.name.toLowerCase().includes(searchTerms.workspace.toLowerCase()) ||
-                    (workspace.type && workspace.type.toLowerCase().includes(searchTerms.workspace.toLowerCase()));
-                return matchesSearch;
-            });
         });
 
         const filteredFeatureFlags = computed(() => {
@@ -705,6 +307,22 @@ const App = {
             });
         });
 
+        const filteredAuditLogs = computed(() => {
+            return auditLogs.value.filter(log => {
+                const matchesSearch = !searchTerms.auditLog ||
+                    log.featureFlagName.toLowerCase().includes(searchTerms.auditLog.toLowerCase()) ||
+                    log.team.toLowerCase().includes(searchTerms.auditLog.toLowerCase());
+
+                const matchesFlagId = !filters.auditFlagId ||
+                    (log.featureFlagId && log.featureFlagId === filters.auditFlagId);
+
+                const matchesOperation = !filters.auditOperation ||
+                    log.operation === filters.auditOperation;
+
+                return matchesSearch && matchesFlagId && matchesOperation;
+            });
+        });
+
         const uniqueTeams = computed(() => {
             const teams = [...new Set(featureFlags.value.map(flag => flag.team))];
             return teams.sort();
@@ -720,7 +338,6 @@ const App = {
             return Array.from(regionsSet).sort();
         });
 
-        // Methods
         const showToast = (message, type = 'info') => {
             toast.message = message;
             toast.type = type;
@@ -736,41 +353,20 @@ const App = {
 
         const switchTab = (tabId) => {
             currentTab.value = tabId;
-
-            // Load data for the active tab
-            switch (tabId) {
-                case 'dashboard':
-                    loadDashboardData();
-                    break;
-                case 'workspaces':
-                    loadWorkspaces();
-                    break;
-                case 'feature-flags':
-                    loadFeatureFlags();
-                    break;
-            }
-        };
-
-        // Data loading methods
-        const loadWorkspaces = async () => {
-            try {
-                loading.workspaces = true;
-                workspaces.value = await apiService.getWorkspaces();
-            } catch (error) {
-                showToast(error.message, 'error');
-            } finally {
-                loading.workspaces = false;
+            if (tabId === 'feature-flags') {
+                loadFeatureFlags();
+            } else if (tabId === 'audit-logs') {
+                loadAuditLogs();
+            } else if (tabId === 'dashboard') {
+                loadFeatureFlags();
+                loadAuditLogs();
             }
         };
 
         const loadFeatureFlags = async () => {
             try {
                 loading.featureFlags = true;
-                if (filters.workspaceId) {
-                    featureFlags.value = await apiService.getFeatureFlagsByWorkspace(filters.workspaceId);
-                } else {
-                    featureFlags.value = await apiService.getFeatureFlags();
-                }
+                featureFlags.value = await apiService.getFeatureFlags();
             } catch (error) {
                 showToast(error.message, 'error');
             } finally {
@@ -778,57 +374,20 @@ const App = {
             }
         };
 
-        const loadDashboardData = async () => {
-            await Promise.all([
-                loadWorkspaces(),
-                loadFeatureFlags(),
-            ]);
-        };
-
-        // CRUD methods for workspaces
-        const createWorkspace = () => {
-            editingItems.workspace = null;
-            modals.workspace = true;
-        };
-
-        const editWorkspace = (workspace) => {
-            editingItems.workspace = workspace;
-            modals.workspace = true;
-        };
-
-        const submitWorkspace = async (data) => {
+        const loadAuditLogs = async () => {
             try {
-                if (editingItems.workspace) {
-                    await apiService.updateWorkspace(editingItems.workspace.id, data);
-                    showToast('Workspace updated successfully', 'success');
-                } else {
-                    await apiService.createWorkspace(data);
-                    showToast('Workspace created successfully', 'success');
-                }
-                modals.workspace = false;
-                await loadWorkspaces();
-                if (currentTab.value === 'dashboard') await loadDashboardData();
+                loading.auditLogs = true;
+                const params = {};
+                if (filters.auditFlagId) params.featureFlagId = filters.auditFlagId;
+                if (filters.auditOperation) params.operation = filters.auditOperation;
+                auditLogs.value = await apiService.getAuditLogs(params);
             } catch (error) {
                 showToast(error.message, 'error');
+            } finally {
+                loading.auditLogs = false;
             }
         };
 
-        const deleteWorkspace = async (workspace) => {
-            if (!confirm(`Are you sure you want to delete workspace "${workspace.name}"?`)) {
-                return;
-            }
-
-            try {
-                await apiService.deleteWorkspace(workspace.id);
-                showToast('Workspace deleted successfully', 'success');
-                await loadWorkspaces();
-                if (currentTab.value === 'dashboard') await loadDashboardData();
-            } catch (error) {
-                showToast(error.message, 'error');
-            }
-        };
-
-        // CRUD methods for feature flags
         const createFeatureFlag = () => {
             editingItems.featureFlag = null;
             modals.featureFlag = true;
@@ -850,7 +409,9 @@ const App = {
                 }
                 modals.featureFlag = false;
                 await loadFeatureFlags();
-                if (currentTab.value === 'dashboard') await loadDashboardData();
+                if (currentTab.value === 'audit-logs') {
+                    await loadAuditLogs();
+                }
             } catch (error) {
                 showToast(error.message, 'error');
             }
@@ -865,95 +426,103 @@ const App = {
                 await apiService.deleteFeatureFlag(flag.id);
                 showToast('Feature flag deleted successfully', 'success');
                 await loadFeatureFlags();
-                if (currentTab.value === 'dashboard') await loadDashboardData();
+                if (currentTab.value === 'audit-logs') {
+                    await loadAuditLogs();
+                }
             } catch (error) {
                 showToast(error.message, 'error');
             }
         };
 
-        const showEvaluationModal = (flagId) => {
-            editingItems.evaluationFlagId = flagId;
-            modals.evaluation = true;
+        const viewAuditDetails = (log) => {
+            editingItems.selectedAuditLog = log;
+            modals.auditDetail = true;
         };
 
-        // Utility methods
         const formatDate = (dateString) => {
-            return new Date(dateString).toLocaleDateString();
+            return new Date(dateString).toLocaleString();
         };
 
-        const getWorkspaceName = (workspaceId) => {
-            const workspace = workspaces.value.find(w => w.id === workspaceId);
-            return workspace ? workspace.name : 'Unknown';
+        const formatJsonDiff = (oldValues, newValues) => {
+            const changes = [];
+            if (!oldValues && newValues) {
+                // CREATE operation - show all new values
+                Object.entries(newValues).forEach(([key, value]) => {
+                    changes.push({ field: key, old: null, new: value, changed: true });
+                });
+            } else if (oldValues && !newValues) {
+                // DELETE operation - show all old values
+                Object.entries(oldValues).forEach(([key, value]) => {
+                    changes.push({ field: key, old: value, new: null, changed: true });
+                });
+            } else if (oldValues && newValues) {
+                // UPDATE operation - only show changed fields
+                const allKeys = new Set([...Object.keys(oldValues), ...Object.keys(newValues)]);
+                allKeys.forEach(key => {
+                    const oldVal = oldValues[key];
+                    const newVal = newValues[key];
+                    // Only include if values are different
+                    if (JSON.stringify(oldVal) !== JSON.stringify(newVal)) {
+                        changes.push({
+                            field: key,
+                            old: oldVal !== undefined ? oldVal : null,
+                            new: newVal !== undefined ? newVal : null,
+                            changed: true
+                        });
+                    }
+                });
+            }
+            return changes;
         };
 
-        const getFeatureFlagName = (flagId) => {
-            const flag = featureFlags.value.find(f => f.id === flagId);
-            return flag ? flag.name : 'Unknown Feature';
-        };
-
-        // Watchers
         const { watch } = Vue;
 
-        // Watch for workspace filter changes
-        watch(() => filters.workspaceId, () => {
-            if (currentTab.value === 'feature-flags') {
-                loadFeatureFlags();
+        watch(() => filters.auditFlagId, () => {
+            if (currentTab.value === 'audit-logs') {
+                loadAuditLogs();
             }
         });
 
-        // Lifecycle
+        watch(() => filters.auditOperation, () => {
+            if (currentTab.value === 'audit-logs') {
+                loadAuditLogs();
+            }
+        });
+
         onMounted(() => {
-            loadDashboardData();
+            loadFeatureFlags();
+            loadAuditLogs();
         });
 
         return {
-            // State
             currentTab,
             loading,
-            workspaces,
             featureFlags,
+            auditLogs,
             searchTerms,
             filters,
             modals,
             editingItems,
             toast,
-
-            // Computed
-            dashboardStats,
-            recentActivity,
-            filteredWorkspaces,
             filteredFeatureFlags,
+            filteredAuditLogs,
             uniqueTeams,
             uniqueRegions,
-
-            // Methods
             showToast,
             closeToast,
             switchTab,
-
-            // Workspace methods
-            createWorkspace,
-            editWorkspace,
-            submitWorkspace,
-            deleteWorkspace,
-
-            // Feature flag methods
             createFeatureFlag,
             editFeatureFlag,
             submitFeatureFlag,
             deleteFeatureFlag,
-            showEvaluationModal,
-
-            // Utility methods
+            viewAuditDetails,
             formatDate,
-            getWorkspaceName,
-            getFeatureFlagName
+            formatJsonDiff
         };
     },
 
     template: `
         <div>
-            <!-- Navigation -->
             <nav class="navbar">
                 <div class="nav-container">
                     <div class="nav-brand">
@@ -966,7 +535,7 @@ const App = {
                             :class="{ active: currentTab === 'dashboard' }"
                             @click="switchTab('dashboard')"
                         >
-                            <i class="fas fa-chart-dashboard"></i>
+                            <i class="fas fa-home"></i>
                             <span>Dashboard</span>
                         </button>
                         <button
@@ -976,64 +545,97 @@ const App = {
                         >
                             <i class="fas fa-flag"></i>
                             <span>Feature Flags</span>
-
+                        </button>
+                        <button
+                            class="nav-item"
+                            :class="{ active: currentTab === 'audit-logs' }"
+                            @click="switchTab('audit-logs')"
+                        >
+                            <i class="fas fa-history"></i>
+                            <span>Audit Logs</span>
+                        </button>
                     </div>
                 </div>
             </nav>
 
-            <!-- Main Content -->
             <main class="main-content">
-                <!-- Dashboard Tab -->
                 <Transition name="slide-fade">
                     <div v-if="currentTab === 'dashboard'">
                         <div class="page-header">
                             <div class="page-title">
                                 <h1>Dashboard</h1>
-                                <p>Overview of your feature flag management system</p>
+                                <p>Overview of your feature flags</p>
                             </div>
                         </div>
 
                         <div class="stats-grid">
                             <div class="stat-card">
                                 <div class="stat-icon">
-                                    <i class="fas fa-building"></i>
-                                </div>
-                                <div class="stat-content">
-                                    <div class="stat-number">{{ dashboardStats.workspaceCount }}</div>
-                                    <div class="stat-label">Workspaces</div>
-                                </div>
-                            </div>
-                            <div class="stat-card">
-                                <div class="stat-icon">
                                     <i class="fas fa-flag"></i>
                                 </div>
-                                <div class="stat-content">
-                                    <div class="stat-number">{{ dashboardStats.featureFlagCount }}</div>
-                                    <div class="stat-label">Feature Flags</div>
+                                <div>
+                                    <div class="stat-number">{{ featureFlags.length }}</div>
+                                    <div class="stat-label">Total Flags</div>
                                 </div>
                             </div>
                             <div class="stat-card">
-                                <div class="stat-icon">
-                                    <i class="fas fa-toggle-on"></i>
+                                <div class="stat-icon" style="background: linear-gradient(135deg, var(--success-color), #059669);">
+                                    <i class="fas fa-check-circle"></i>
                                 </div>
-                                <div class="stat-content">
-                                    <div class="stat-number">{{ dashboardStats.activeFlagsCount }}</div>
+                                <div>
+                                    <div class="stat-number">{{ featureFlags.filter(f => f.rolloutPercentage > 0).length }}</div>
                                     <div class="stat-label">Active Flags</div>
+                                </div>
+                            </div>
+                            <div class="stat-card">
+                                <div class="stat-icon" style="background: linear-gradient(135deg, var(--info-color), #0891b2);">
+                                    <i class="fas fa-users"></i>
+                                </div>
+                                <div>
+                                    <div class="stat-number">{{ uniqueTeams.length }}</div>
+                                    <div class="stat-label">Teams</div>
+                                </div>
+                            </div>
+                            <div class="stat-card">
+                                <div class="stat-icon" style="background: linear-gradient(135deg, var(--warning-color), #d97706);">
+                                    <i class="fas fa-history"></i>
+                                </div>
+                                <div>
+                                    <div class="stat-number">{{ auditLogs.length }}</div>
+                                    <div class="stat-label">Audit Logs</div>
                                 </div>
                             </div>
                         </div>
 
                         <div class="dashboard-sections">
                             <div class="recent-activity">
-                                <h2>Recent Activity</h2>
-                                <div class="activity-list">
-                                    <div v-for="activity in recentActivity" :key="activity.title" class="activity-item">
-                                        <div class="activity-icon">
-                                            <i :class="activity.icon"></i>
+                                <h2><i class="fas fa-clock"></i> Recent Activity</h2>
+                                <div v-if="auditLogs.length === 0" class="loading">No recent activity</div>
+                                <div v-else class="activity-list">
+                                    <div v-for="log in auditLogs.slice(0, 10)" :key="log.id" class="activity-item">
+                                        <div class="activity-icon" :style="{
+                                            background: log.operation === 'CREATE' ? 'var(--success-color)' :
+                                                       log.operation === 'UPDATE' ? 'var(--info-color)' :
+                                                       'var(--danger-color)'
+                                        }">
+                                            <i :class="[
+                                                'fas',
+                                                log.operation === 'CREATE' ? 'fa-plus' :
+                                                log.operation === 'UPDATE' ? 'fa-edit' :
+                                                'fa-trash'
+                                            ]"></i>
                                         </div>
-                                        <div class="activity-content">
-                                            <div class="activity-title">{{ activity.title }}</div>
-                                            <div class="activity-time">{{ activity.time }}</div>
+                                        <div style="flex: 1;">
+                                            <div class="activity-title">
+                                                <span :class="['badge', log.operation === 'CREATE' ? 'badge-success' : log.operation === 'UPDATE' ? 'badge-info' : 'badge-danger']">
+                                                    {{ log.operation }}
+                                                </span>
+                                                {{ log.featureFlagName }}
+                                            </div>
+                                            <div class="activity-time">
+                                                {{ log.team }} · {{ formatDate(log.timestamp) }}
+                                                <span v-if="log.changedBy"> · by {{ log.changedBy }}</span>
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
@@ -1041,7 +643,6 @@ const App = {
                         </div>
                     </div>
                 </Transition>
-
 
                 <Transition name="slide-fade">
                     <div v-if="currentTab === 'feature-flags'">
@@ -1116,7 +717,7 @@ const App = {
                                                 <i class="fas fa-trash"></i>
                                                 Delete
                                             </button>
-
+                                        </div>
                                     </div>
                                 </div>
                             </div>
@@ -1124,21 +725,85 @@ const App = {
                     </div>
                 </Transition>
 
+                <Transition name="slide-fade">
+                    <div v-if="currentTab === 'audit-logs'">
+                        <div class="page-header">
+                            <div class="page-title">
+                                <h1>Audit Logs</h1>
+                                <p>View complete history of feature flag changes</p>
+                            </div>
+                            <div class="page-actions">
+                                <select v-model="filters.auditFlagId" class="form-select">
+                                    <option value="">All Flags</option>
+                                    <option v-for="flag in featureFlags" :key="flag.id" :value="flag.id">
+                                        {{ flag.name }}
+                                    </option>
+                                </select>
+                                <select v-model="filters.auditOperation" class="form-select">
+                                    <option value="">All Operations</option>
+                                    <option value="CREATE">Create</option>
+                                    <option value="UPDATE">Update</option>
+                                    <option value="DELETE">Delete</option>
+                                </select>
+                            </div>
+                        </div>
 
+                        <div class="content-section">
+                            <div class="search-bar">
+                                <i class="fas fa-search"></i>
+                                <input
+                                    type="text"
+                                    v-model="searchTerms.auditLog"
+                                    placeholder="Search audit logs..."
+                                />
+                            </div>
 
-            <!-- Modals -->
-            <ModalComponent
-                :visible="modals.workspace"
-                :title="editingItems.workspace ? 'Edit Workspace' : 'Create Workspace'"
-                @close="modals.workspace = false"
-            >
-                <WorkspaceFormComponent
-                    :workspace="editingItems.workspace"
-                    :is-edit="!!editingItems.workspace"
-                    @submit="submitWorkspace"
-                    @cancel="modals.workspace = false"
-                />
-            </ModalComponent>
+                            <div class="audit-table-container">
+                                <div v-if="loading.auditLogs" class="loading">Loading audit logs...</div>
+                                <div v-else-if="filteredAuditLogs.length === 0" class="loading">No audit logs found</div>
+                                <table v-else class="audit-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Operation</th>
+                                            <th>Feature Flag</th>
+                                            <th>Team</th>
+                                            <th>Timestamp</th>
+                                            <th>Changed By</th>
+                                            <th>Changes</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <tr v-for="log in filteredAuditLogs" :key="log.id">
+                                            <td>
+                                                <span :class="['badge', log.operation === 'CREATE' ? 'badge-success' : log.operation === 'UPDATE' ? 'badge-info' : 'badge-danger']">
+                                                    {{ log.operation }}
+                                                </span>
+                                            </td>
+                                            <td><strong>{{ log.featureFlagName }}</strong></td>
+                                            <td>{{ log.team }}</td>
+                                            <td>{{ formatDate(log.timestamp) }}</td>
+                                            <td>{{ log.changedBy || '-' }}</td>
+                                            <td class="changes-cell">
+                                                <div v-if="formatJsonDiff(log.oldValues, log.newValues).length === 0">
+                                                    No changes
+                                                </div>
+                                                <div v-else class="changes-list">
+                                                    <div v-for="change in formatJsonDiff(log.oldValues, log.newValues)" :key="change.field" class="change-item">
+                                                        <strong>{{ change.field }}:</strong>
+                                                        <span class="old-value">{{ change.old !== null ? JSON.stringify(change.old) : '-' }}</span>
+                                                        <i class="fas fa-arrow-right"></i>
+                                                        <span class="new-value">{{ change.new !== null ? JSON.stringify(change.new) : '-' }}</span>
+                                                    </div>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </Transition>
+            </main>
 
             <ModalComponent
                 :visible="modals.featureFlag"
@@ -1154,47 +819,55 @@ const App = {
             </ModalComponent>
 
             <ModalComponent
-                :visible="modals.user"
-                :title="editingItems.user ? 'Edit User' : 'Create User'"
-                @close="modals.user = false"
+                :visible="modals.auditDetail"
+                title="Audit Log Details"
+                @close="modals.auditDetail = false"
             >
-                <UserFormComponent
-                    :user="editingItems.user"
-                    :is-edit="!!editingItems.user"
-                    :workspaces="workspaces"
-                    @submit="submitUser"
-                    @cancel="modals.user = false"
-                />
+                <div v-if="editingItems.selectedAuditLog" class="audit-detail">
+                    <div class="detail-row">
+                        <strong>Operation:</strong>
+                        <span :class="['badge', editingItems.selectedAuditLog.operation === 'CREATE' ? 'badge-success' : editingItems.selectedAuditLog.operation === 'UPDATE' ? 'badge-info' : 'badge-danger']">
+                            {{ editingItems.selectedAuditLog.operation }}
+                        </span>
+                    </div>
+                    <div class="detail-row">
+                        <strong>Feature Flag:</strong>
+                        <span>{{ editingItems.selectedAuditLog.featureFlagName }}</span>
+                    </div>
+                    <div class="detail-row">
+                        <strong>Team:</strong>
+                        <span>{{ editingItems.selectedAuditLog.team }}</span>
+                    </div>
+                    <div class="detail-row">
+                        <strong>Timestamp:</strong>
+                        <span>{{ formatDate(editingItems.selectedAuditLog.timestamp) }}</span>
+                    </div>
+                    <div class="detail-row" v-if="editingItems.selectedAuditLog.changedBy">
+                        <strong>Changed By:</strong>
+                        <span>{{ editingItems.selectedAuditLog.changedBy }}</span>
+                    </div>
+                    <div class="detail-section">
+                        <h3>Changes</h3>
+                        <table class="changes-table">
+                            <thead>
+                                <tr>
+                                    <th>Field</th>
+                                    <th>Old Value</th>
+                                    <th>New Value</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr v-for="change in formatJsonDiff(editingItems.selectedAuditLog.oldValues, editingItems.selectedAuditLog.newValues)" :key="change.field" :class="{ changed: change.changed }">
+                                    <td><strong>{{ change.field }}</strong></td>
+                                    <td><code>{{ change.old !== null ? JSON.stringify(change.old) : '-' }}</code></td>
+                                    <td><code>{{ change.new !== null ? JSON.stringify(change.new) : '-' }}</code></td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
             </ModalComponent>
 
-            <ModalComponent
-                :visible="modals.customerFeatureFlag"
-                :title="editingItems.customerFeatureFlag ? 'Edit Customer Feature Flag' : 'Create Customer Feature Flag'"
-                @close="modals.customerFeatureFlag = false"
-            >
-                <CustomerFeatureFlagFormComponent
-                    :customer-flag="editingItems.customerFeatureFlag"
-                    :is-edit="!!editingItems.customerFeatureFlag"
-                    :workspaces="workspaces"
-                    :feature-flags="featureFlags"
-                    @submit="submitCustomerFeatureFlag"
-                    @cancel="modals.customerFeatureFlag = false"
-                />
-            </ModalComponent>
-
-            <ModalComponent
-                :visible="modals.evaluation"
-                title="Evaluate Feature Flag"
-                @close="modals.evaluation = false"
-            >
-                <EvaluationModalComponent
-                    :flag-id="editingItems.evaluationFlagId"
-                    @error="showToast"
-                    @close="modals.evaluation = false"
-                />
-            </ModalComponent>
-
-            <!-- Toast Notification -->
             <ToastComponent
                 :visible="toast.visible"
                 :message="toast.message"
@@ -1204,5 +877,3 @@ const App = {
         </div>
     `
 };
-
-// Create and mount the app

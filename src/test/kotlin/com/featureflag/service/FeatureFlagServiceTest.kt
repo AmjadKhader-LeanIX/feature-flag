@@ -27,6 +27,7 @@ class FeatureFlagServiceTest {
     private lateinit var featureFlagRepository: FeatureFlagRepository
     private lateinit var workspaceRepository: WorkspaceRepository
     private lateinit var workspaceFeatureFlagRepository: WorkspaceFeatureFlagRepository
+    private lateinit var auditLogService: AuditLogService
     private lateinit var featureFlagService: FeatureFlagService
 
     @BeforeEach
@@ -34,10 +35,12 @@ class FeatureFlagServiceTest {
         featureFlagRepository = mockk()
         workspaceRepository = mockk()
         workspaceFeatureFlagRepository = mockk()
+        auditLogService = mockk(relaxed = true)
         featureFlagService = FeatureFlagService(
             featureFlagRepository,
             workspaceRepository,
-            workspaceFeatureFlagRepository
+            workspaceFeatureFlagRepository,
+            auditLogService
         )
     }
 
@@ -230,24 +233,25 @@ class FeatureFlagServiceTest {
     @Test
     fun `should delete feature flag successfully`() {
         val flagId = UUID.randomUUID()
-        every { featureFlagRepository.existsById(flagId) } returns true
+        val featureFlag = createMockFeatureFlag("test-flag", "team1", flagId)
+        every { featureFlagRepository.findById(flagId) } returns Optional.of(featureFlag)
         every { featureFlagRepository.deleteById(flagId) } returns Unit
 
         featureFlagService.deleteFeatureFlag(flagId)
 
-        verify { featureFlagRepository.existsById(flagId) }
+        verify { featureFlagRepository.findById(flagId) }
         verify { featureFlagRepository.deleteById(flagId) }
     }
 
     @Test
     fun `should throw exception when deleting non-existent feature flag`() {
         val flagId = UUID.randomUUID()
-        every { featureFlagRepository.existsById(flagId) } returns false
+        every { featureFlagRepository.findById(flagId) } returns Optional.empty()
 
         assertThrows<ResourceNotFoundException> {
             featureFlagService.deleteFeatureFlag(flagId)
         }
-        verify { featureFlagRepository.existsById(flagId) }
+        verify { featureFlagRepository.findById(flagId) }
     }
 
     @Test
