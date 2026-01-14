@@ -7,7 +7,5 @@ import java.util.*
 
 @Repository
 interface WorkspaceRepository : JpaRepository<Workspace, UUID> {
-    fun findByNameContainingIgnoreCase(name: String): List<Workspace>
-    fun existsByName(name: String): Boolean
-
+    fun findByRegionIn(region: List<String>): List<Workspace>
 }

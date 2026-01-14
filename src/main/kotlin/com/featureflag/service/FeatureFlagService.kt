@@ -60,8 +60,10 @@ class FeatureFlagService(
         )
         val savedFeatureFlag = featureFlagRepository.save(featureFlag)
 
+        val featureFlagRegions = featureFlag.regions.split(",").map { it.trim() }.toList()
+
         workspaceFeatureFlagRepository.saveAll(
-            workspaceRepository.findAll().map { workspace ->
+            workspaceRepository.findByRegionIn(featureFlagRegions).map { workspace ->
                 WorkspaceFeatureFlag(
                     workspace = workspace,
                     featureFlag = savedFeatureFlag,
@@ -148,15 +150,20 @@ class FeatureFlagService(
         newPercentage: Int
     ) {
         // Load all existing workspace-feature flag associations for this feature flag by region
-        val allWorkspaceFeatureFlags =
-            if (featureFlag.regions.equals("ALL", ignoreCase = true))
-                workspaceFeatureFlagRepository.findByFeatureFlag(featureFlag)
-            else
-                workspaceFeatureFlagRepository.findByFeatureFlagAndWorkspaceRegion(featureFlag, featureFlag.regions)
+        val allWorkspaceFeatureFlags = workspaceFeatureFlagRepository.findByFeatureFlag(featureFlag)
+
+        // Parse the feature flag's regions
+        val featureFlagRegions = featureFlag.regions.split(",").map { it.trim() }.toSet()
+
+        // Filter workspaces to only include those whose region matches one of the feature flag's regions
+        val workspaceFeatureFlagsByRegion = allWorkspaceFeatureFlags.filter { workspaceFeatureFlag ->
+            val workspaceRegion = workspaceFeatureFlag.workspace.region?.toString()
+            workspaceRegion != null && featureFlagRegions.contains(workspaceRegion)
+        }
 
         // Case 1: 0% rollout means disable all workspaces
         if (newPercentage == 0) {
-            val disabledFlags = allWorkspaceFeatureFlags.map { existing ->
+            val disabledFlags = workspaceFeatureFlagsByRegion.map { existing ->
                 WorkspaceFeatureFlag(
                     id = existing.id,
                     workspace = existing.workspace,
@@ -172,7 +179,7 @@ class FeatureFlagService(
 
         // Case 2: 100% rollout means enable all workspaces
         if (newPercentage == 100) {
-            val enabledFlags = allWorkspaceFeatureFlags.map { existing ->
+            val enabledFlags = workspaceFeatureFlagsByRegion.map { existing ->
                 WorkspaceFeatureFlag(
                     id = existing.id,
                     workspace = existing.workspace,
@@ -186,12 +193,12 @@ class FeatureFlagService(
 
         // For percentage between 1-99, use deterministic ordering with exact count
         // Calculate exact number of workspaces to enable
-        val totalWorkspaces = allWorkspaceFeatureFlags.size
+        val totalWorkspaces = workspaceFeatureFlagsByRegion.size
         val targetEnabledCount = (totalWorkspaces * newPercentage / 100.0).toInt()
 
         // Create a deterministic ordering of all workspaces using hash
         // This ensures the same workspaces are always selected for the same percentage
-        val sortedWorkspaces = allWorkspaceFeatureFlags.sortedBy { workspaceFeatureFlag ->
+        val sortedWorkspaces = workspaceFeatureFlagsByRegion.sortedBy { workspaceFeatureFlag ->
             val workspaceId = workspaceFeatureFlag.workspace.id!!
             // Calculate a deterministic hash for this workspace-feature flag combination
             abs((featureFlag.id.toString() + workspaceId.toString()).hashCode())

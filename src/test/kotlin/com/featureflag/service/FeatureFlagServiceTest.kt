@@ -3,6 +3,7 @@ package com.featureflag.service
 import com.featureflag.dto.CreateFeatureFlagRequest
 import com.featureflag.dto.UpdateFeatureFlagRequest
 import com.featureflag.entity.FeatureFlag
+import com.featureflag.entity.Region
 import com.featureflag.entity.Workspace
 import com.featureflag.entity.WorkspaceFeatureFlag
 import com.featureflag.exception.ResourceNotFoundException
@@ -137,7 +138,7 @@ class FeatureFlagServiceTest {
 
         every { featureFlagRepository.existsByTeamAndName("team1", "new-flag") } returns false
         every { featureFlagRepository.save(any()) } returns savedFeatureFlag
-        every { workspaceRepository.findAll() } returns emptyList()
+        every { workspaceRepository.findByRegionIn(listOf("ALL")) } returns emptyList()
         every { workspaceFeatureFlagRepository.saveAll(any<List<WorkspaceFeatureFlag>>()) } returns emptyList()
         every { workspaceFeatureFlagRepository.findByFeatureFlag(savedFeatureFlag) } returns emptyList()
 
@@ -148,6 +149,67 @@ class FeatureFlagServiceTest {
         assertEquals(50, result.rolloutPercentage)
         verify { featureFlagRepository.existsByTeamAndName("team1", "new-flag") }
         verify { featureFlagRepository.save(any()) }
+        verify { workspaceRepository.findByRegionIn(listOf("ALL")) }
+    }
+
+    @ParameterizedTest
+    @org.junit.jupiter.params.provider.CsvSource(
+        "WESTEUROPE, 2",
+        "EASTUS, 2",
+        "CANADACENTRAL, 2"
+    )
+    fun `should create feature flag with specific region`(regionName: String, expectedWorkspaceCount: Int) {
+        val region = Region.valueOf(regionName)
+        val request = CreateFeatureFlagRequest("region-flag", "description", "team1", listOf(regionName), 50)
+        val savedFeatureFlag = createMockFeatureFlag("region-flag", "team1").copy(regions = regionName)
+        val workspace1 = createMockWorkspace(UUID.randomUUID(), region)
+        val workspace2 = createMockWorkspace(UUID.randomUUID(), region)
+
+        every { featureFlagRepository.existsByTeamAndName("team1", "region-flag") } returns false
+        every { featureFlagRepository.save(any()) } returns savedFeatureFlag
+        every { workspaceRepository.findByRegionIn(listOf(regionName)) } returns listOf(workspace1, workspace2)
+        every { workspaceFeatureFlagRepository.saveAll(any<List<WorkspaceFeatureFlag>>()) } returns emptyList()
+        every { workspaceFeatureFlagRepository.findByFeatureFlag(savedFeatureFlag) } returns emptyList()
+
+        val result = featureFlagService.createFeatureFlag(request)
+
+        assertEquals("region-flag", result.name)
+        assertEquals(listOf(regionName), result.regions)
+        verify { workspaceRepository.findByRegionIn(listOf(regionName)) }
+        verify(exactly = 1) { workspaceFeatureFlagRepository.saveAll(any<List<WorkspaceFeatureFlag>>()) }
+    }
+
+    @ParameterizedTest
+    @org.junit.jupiter.params.provider.CsvSource(
+        "WESTEUROPE;EASTUS, 3",
+        "WESTEUROPE;CANADACENTRAL, 3",
+        "EASTUS;JAPANEAST, 3"
+    )
+    fun `should create feature flag with multiple regions`(regionsStr: String, expectedWorkspaceCount: Int) {
+        val regionsList = regionsStr.split(";")
+        val regions = regionsList.map { Region.valueOf(it) }
+        val request = CreateFeatureFlagRequest("multi-region-flag", "description", "team1", regionsList, 50)
+        val savedFeatureFlag =
+            createMockFeatureFlag("multi-region-flag", "team1").copy(regions = regionsStr.replace(";", ","))
+
+        val workspaces = listOf<Workspace>(
+            createMockWorkspace(UUID.randomUUID(), regions[0]),
+            createMockWorkspace(UUID.randomUUID(), regions[1]),
+            createMockWorkspace(UUID.randomUUID(), regions[1])
+        )
+
+        every { featureFlagRepository.existsByTeamAndName("team1", "multi-region-flag") } returns false
+        every { featureFlagRepository.save(any()) } returns savedFeatureFlag
+        every { workspaceRepository.findByRegionIn(regionsList) } returns workspaces
+        every { workspaceFeatureFlagRepository.saveAll(any<List<WorkspaceFeatureFlag>>()) } returns emptyList()
+        every { workspaceFeatureFlagRepository.findByFeatureFlag(savedFeatureFlag) } returns emptyList()
+
+        val result = featureFlagService.createFeatureFlag(request)
+
+        assertEquals("multi-region-flag", result.name)
+        assertEquals(regionsList, result.regions)
+        verify { workspaceRepository.findByRegionIn(regionsList) }
+        verify(exactly = 1) { workspaceFeatureFlagRepository.saveAll(any<List<WorkspaceFeatureFlag>>()) }
     }
 
     @Test
@@ -277,7 +339,7 @@ class FeatureFlagServiceTest {
 
             every { featureFlagRepository.existsByTeamAndName("team1", "zero-flag") } returns false
             every { featureFlagRepository.save(any()) } returns savedFeatureFlag
-            every { workspaceRepository.findAll() } returns emptyList()
+            every { workspaceRepository.findByRegionIn(listOf("ALL")) } returns emptyList()
             every { workspaceFeatureFlagRepository.saveAll(any<List<WorkspaceFeatureFlag>>()) } returns emptyList()
             every { workspaceFeatureFlagRepository.findByFeatureFlag(savedFeatureFlag) } returns emptyList()
 
@@ -310,39 +372,42 @@ class FeatureFlagServiceTest {
         }
     }
 
-    private fun createMockFeatureFlag(name: String, team: String, id: UUID = UUID.randomUUID()): FeatureFlag {
-        return FeatureFlag(
-            id = id,
-            name = name,
-            description = "Test description",
-            team = team,
-            rolloutPercentage = 50,
-            regions = "ALL",
-            createdAt = LocalDateTime.now(),
-            updatedAt = LocalDateTime.now()
-        )
-    }
-
     @ParameterizedTest
     @org.junit.jupiter.params.provider.CsvSource(
-        "0, 100",
-        "100, 0",
-        "20, 50",
-        "50, 20"
+        "0, 100, ALL",
+        "100, 0, ALL",
+        "20, 50, ALL",
+        "50, 20, ALL",
+        "0, 100, WESTEUROPE",
+        "100, 0, WESTEUROPE",
+        "20, 50, WESTEUROPE;EASTUS",
+        "50, 20, WESTEUROPE;EASTUS;CANADACENTRAL"
     )
-    fun `should handle rollout percentage updates correctly`(oldPercentage: Int, newPercentage: Int) {
+    fun `should handle rollout percentage updates correctly`(
+        oldPercentage: Int,
+        newPercentage: Int,
+        regionsStr: String
+    ) {
         val flagId = UUID.randomUUID()
-        val existingFlag = createMockFeatureFlag("flag", "team1", flagId).copy(rolloutPercentage = oldPercentage)
+        val regionsList = regionsStr.split(";")
+        val regions = regionsList.map { Region.valueOf(it) }
+        val existingFlag = createMockFeatureFlag("flag", "team1", flagId).copy(
+            rolloutPercentage = oldPercentage,
+            regions = regionsStr.replace(";", ",")
+        )
 
-        val workspaces = (0..9).map { createMockWorkspace(UUID.randomUUID()) }
+        // Create workspaces: some in matching regions, some not
+        val matchingWorkspaces = (0..4).map { createMockWorkspace(UUID.randomUUID(), regions[0]) }
+        val nonMatchingWorkspaces = (0..2).map { createMockWorkspace(UUID.randomUUID(), Region.JAPANEAST) }
+        val allWorkspaces = matchingWorkspaces + nonMatchingWorkspaces
 
         // Sort workspaces deterministically the same way the service does
-        val sortedWorkspaces = workspaces.sortedBy { workspace ->
+        val sortedWorkspaces = allWorkspaces.sortedBy { workspace ->
             kotlin.math.abs((existingFlag.id.toString() + workspace.id.toString()).hashCode())
         }
 
         // Calculate how many should be enabled at old percentage using exact count
-        val totalWorkspaces = workspaces.size
+        val totalWorkspaces = allWorkspaces.size
         val oldTargetCount = (totalWorkspaces * oldPercentage / 100.0).toInt()
 
         val workspaceFeatureFlags = sortedWorkspaces.mapIndexed { index, workspace ->
@@ -358,7 +423,7 @@ class FeatureFlagServiceTest {
 
         val originalEnabledWorkspaceIds = workspaceFeatureFlags.filter { it.isEnabled }.map { it.workspace.id }.toSet()
 
-        val request = UpdateFeatureFlagRequest("flag", "description", "team1", listOf("ALL"), newPercentage)
+        val request = UpdateFeatureFlagRequest("flag", "description", "team1", regionsList, newPercentage)
         val updatedFlag = existingFlag.copy(rolloutPercentage = newPercentage)
 
         every { featureFlagRepository.findById(flagId) } returns Optional.of(existingFlag)
@@ -372,11 +437,17 @@ class FeatureFlagServiceTest {
         val result = featureFlagService.updateFeatureFlag(flagId, request)
 
         assertEquals(newPercentage, result.rolloutPercentage, "Returned DTO should have new percentage")
-        verify { workspaceFeatureFlagRepository.saveAll(any<List<WorkspaceFeatureFlag>>()) }
+
+        verify(atMost = 1) { workspaceFeatureFlagRepository.saveAll(any<List<WorkspaceFeatureFlag>>()) }
 
         if (savedWorkspaces.isNotEmpty()) {
             val saved = savedWorkspaces.first()
 
+            // Verify that only workspaces in matching regions were updated
+            val regionSet = regions.toSet()
+            assert(saved.all { it.workspace.region in regionSet }) {
+                "Only workspaces in matching regions should be updated. Found regions: ${saved.map { it.workspace.region }}"
+            }
             when {
                 newPercentage == 0 -> {
                     assert(saved.all { !it.isEnabled }) { "All changed workspaces should be disabled at 0%" }
@@ -385,13 +456,16 @@ class FeatureFlagServiceTest {
                     assert(saved.all { it.isEnabled }) { "All changed workspaces should be enabled at 100%" }
                 }
                 newPercentage > oldPercentage -> {
-                    val nowDisabled = saved.filter { !it.isEnabled && originalEnabledWorkspaceIds.contains(it.workspace.id) }
+                    val nowDisabled =
+                        saved.filter { !it.isEnabled && originalEnabledWorkspaceIds.contains(it.workspace.id) }
                     assert(nowDisabled.isEmpty()) {
                         "When increasing percentage, no originally enabled workspaces should be disabled. Found: ${nowDisabled.map { it.workspace.id }}"
                     }
                 }
+
                 newPercentage < oldPercentage -> {
-                    val wronglyEnabled = saved.filter { it.isEnabled && !originalEnabledWorkspaceIds.contains(it.workspace.id) }
+                    val wronglyEnabled =
+                        saved.filter { it.isEnabled && !originalEnabledWorkspaceIds.contains(it.workspace.id) }
                     assert(wronglyEnabled.isEmpty()) {
                         "When decreasing percentage, no new workspaces should be enabled. Found: ${wronglyEnabled.map { it.workspace.id }}"
                     }
@@ -400,12 +474,212 @@ class FeatureFlagServiceTest {
         }
     }
 
-    private fun createMockWorkspace(id: UUID = UUID.randomUUID()): Workspace {
+    @Test
+    fun `should only rollout to workspaces in matching regions`() {
+        val flagId = UUID.randomUUID()
+        val existingFlag = createMockFeatureFlag("region-flag", "team1", flagId).copy(
+            regions = "WESTEUROPE,EASTUS",
+            rolloutPercentage = 0
+        )
+
+        val westEuropeWs1 = createMockWorkspace(UUID.randomUUID(), Region.WESTEUROPE)
+        val westEuropeWs2 = createMockWorkspace(UUID.randomUUID(), Region.WESTEUROPE)
+        val eastUsWs = createMockWorkspace(UUID.randomUUID(), Region.EASTUS)
+        val canadaWs = createMockWorkspace(UUID.randomUUID(), Region.CANADACENTRAL)
+        val japanWs = createMockWorkspace(UUID.randomUUID(), Region.JAPANEAST)
+
+        val allWorkspaceFeatureFlags = listOf(
+            WorkspaceFeatureFlag(UUID.randomUUID(), westEuropeWs1, existingFlag, false),
+            WorkspaceFeatureFlag(UUID.randomUUID(), westEuropeWs2, existingFlag, false),
+            WorkspaceFeatureFlag(UUID.randomUUID(), eastUsWs, existingFlag, false),
+            WorkspaceFeatureFlag(UUID.randomUUID(), canadaWs, existingFlag, false),
+            WorkspaceFeatureFlag(UUID.randomUUID(), japanWs, existingFlag, false)
+        )
+
+        val request =
+            UpdateFeatureFlagRequest("region-flag", "description", "team1", listOf("WESTEUROPE", "EASTUS"), 100)
+        val updatedFlag = existingFlag.copy(rolloutPercentage = 100)
+
+        every { featureFlagRepository.findById(flagId) } returns Optional.of(existingFlag)
+        every { featureFlagRepository.existsByTeamAndName("team1", "region-flag") } returns true
+        every { featureFlagRepository.save(any()) } returns updatedFlag
+        every { workspaceFeatureFlagRepository.findByFeatureFlag(any()) } returns allWorkspaceFeatureFlags
+
+        val savedWorkspaces = mutableListOf<List<WorkspaceFeatureFlag>>()
+        every { workspaceFeatureFlagRepository.saveAll(capture(savedWorkspaces)) } returns emptyList()
+
+        val result = featureFlagService.updateFeatureFlag(flagId, request)
+
+        assertEquals(100, result.rolloutPercentage)
+        verify { workspaceFeatureFlagRepository.saveAll(any<List<WorkspaceFeatureFlag>>()) }
+
+        val saved = savedWorkspaces.first()
+        assertEquals(3, saved.size, "Only 3 workspaces (2 WESTEUROPE + 1 EASTUS) should be updated")
+        assert(saved.all { it.isEnabled }) { "All matching region workspaces should be enabled" }
+        assert(saved.none { it.workspace.id == canadaWs.id }) { "CANADACENTRAL workspace should not be updated" }
+        assert(saved.none { it.workspace.id == japanWs.id }) { "JAPANEAST workspace should not be updated" }
+    }
+
+    @Test
+    fun `should filter by region when decreasing rollout percentage`() {
+        val flagId = UUID.randomUUID()
+        val existingFlag = createMockFeatureFlag("region-flag", "team1", flagId).copy(
+            regions = "WESTEUROPE",
+            rolloutPercentage = 100
+        )
+
+        val westEuropeWs1 = createMockWorkspace(UUID.randomUUID(), Region.WESTEUROPE)
+        val westEuropeWs2 = createMockWorkspace(UUID.randomUUID(), Region.WESTEUROPE)
+        val westEuropeWs3 = createMockWorkspace(UUID.randomUUID(), Region.WESTEUROPE)
+        val eastUsWs = createMockWorkspace(UUID.randomUUID(), Region.EASTUS)
+
+        val allWorkspaceFeatureFlags = listOf(
+            WorkspaceFeatureFlag(UUID.randomUUID(), westEuropeWs1, existingFlag, true),
+            WorkspaceFeatureFlag(UUID.randomUUID(), westEuropeWs2, existingFlag, true),
+            WorkspaceFeatureFlag(UUID.randomUUID(), westEuropeWs3, existingFlag, true),
+            WorkspaceFeatureFlag(UUID.randomUUID(), eastUsWs, existingFlag, true)
+        )
+
+        val request = UpdateFeatureFlagRequest("region-flag", "description", "team1", listOf("WESTEUROPE"), 50)
+        val updatedFlag = existingFlag.copy(rolloutPercentage = 50)
+
+        every { featureFlagRepository.findById(flagId) } returns Optional.of(existingFlag)
+        every { featureFlagRepository.existsByTeamAndName("team1", "region-flag") } returns true
+        every { featureFlagRepository.save(any()) } returns updatedFlag
+        every { workspaceFeatureFlagRepository.findByFeatureFlag(any()) } returns allWorkspaceFeatureFlags
+
+        val savedWorkspaces = mutableListOf<List<WorkspaceFeatureFlag>>()
+        every { workspaceFeatureFlagRepository.saveAll(capture(savedWorkspaces)) } returns emptyList()
+
+        val result = featureFlagService.updateFeatureFlag(flagId, request)
+
+        assertEquals(50, result.rolloutPercentage)
+
+        val saved = savedWorkspaces.first()
+        assert(saved.none { it.workspace.id == eastUsWs.id }) { "EASTUS workspace should not be touched" }
+        assert(saved.all { it.workspace.region == Region.WESTEUROPE }) { "Only WESTEUROPE workspaces should be updated" }
+    }
+
+    @Test
+    fun `should handle multi-region rollout with mixed percentages`() {
+        val flagId = UUID.randomUUID()
+        val existingFlag = createMockFeatureFlag("multi-region-flag", "team1", flagId).copy(
+            regions = "WESTEUROPE,EASTUS,CANADACENTRAL",
+            rolloutPercentage = 0
+        )
+
+        val westEuropeWs1 = createMockWorkspace(UUID.randomUUID(), Region.WESTEUROPE)
+        val westEuropeWs2 = createMockWorkspace(UUID.randomUUID(), Region.WESTEUROPE)
+        val eastUsWs1 = createMockWorkspace(UUID.randomUUID(), Region.EASTUS)
+        val eastUsWs2 = createMockWorkspace(UUID.randomUUID(), Region.EASTUS)
+        val canadaWs1 = createMockWorkspace(UUID.randomUUID(), Region.CANADACENTRAL)
+        val canadaWs2 = createMockWorkspace(UUID.randomUUID(), Region.CANADACENTRAL)
+        val japanWs1 = createMockWorkspace(UUID.randomUUID(), Region.JAPANEAST)
+        val japanWs2 = createMockWorkspace(UUID.randomUUID(), Region.JAPANEAST)
+
+        val allWorkspaceFeatureFlags = listOf(
+            WorkspaceFeatureFlag(UUID.randomUUID(), westEuropeWs1, existingFlag, false),
+            WorkspaceFeatureFlag(UUID.randomUUID(), westEuropeWs2, existingFlag, false),
+            WorkspaceFeatureFlag(UUID.randomUUID(), eastUsWs1, existingFlag, false),
+            WorkspaceFeatureFlag(UUID.randomUUID(), eastUsWs2, existingFlag, false),
+            WorkspaceFeatureFlag(UUID.randomUUID(), canadaWs1, existingFlag, false),
+            WorkspaceFeatureFlag(UUID.randomUUID(), canadaWs2, existingFlag, false),
+            WorkspaceFeatureFlag(UUID.randomUUID(), japanWs1, existingFlag, false),
+            WorkspaceFeatureFlag(UUID.randomUUID(), japanWs2, existingFlag, false)
+        )
+
+        val request = UpdateFeatureFlagRequest(
+            "multi-region-flag", "description", "team1",
+            listOf("WESTEUROPE", "EASTUS", "CANADACENTRAL"), 50
+        )
+        val updatedFlag = existingFlag.copy(rolloutPercentage = 50)
+
+        every { featureFlagRepository.findById(flagId) } returns Optional.of(existingFlag)
+        every { featureFlagRepository.existsByTeamAndName("team1", "multi-region-flag") } returns true
+        every { featureFlagRepository.save(any()) } returns updatedFlag
+        every { workspaceFeatureFlagRepository.findByFeatureFlag(any()) } returns allWorkspaceFeatureFlags
+
+        val savedWorkspaces = mutableListOf<List<WorkspaceFeatureFlag>>()
+        every { workspaceFeatureFlagRepository.saveAll(capture(savedWorkspaces)) } returns emptyList()
+
+        val result = featureFlagService.updateFeatureFlag(flagId, request)
+
+        assertEquals(50, result.rolloutPercentage)
+
+        val saved = savedWorkspaces.first()
+        val enabledCount = saved.count { it.isEnabled }
+        assertEquals(3, enabledCount, "Approximately 50% of 6 matching workspaces should be enabled")
+
+        assert(saved.none { it.workspace.id == japanWs1.id || it.workspace.id == japanWs2.id }) {
+            "JAPANEAST workspaces should not be updated as they don't match feature flag regions"
+        }
+
+        val validRegions = setOf(Region.WESTEUROPE, Region.EASTUS, Region.CANADACENTRAL)
+        assert(saved.all { it.workspace.region in validRegions }) {
+            "Only workspaces in WESTEUROPE, EASTUS, or CANADACENTRAL should be updated"
+        }
+    }
+
+    @Test
+    fun `should update region list and apply new rollout to new regions only`() {
+        val flagId = UUID.randomUUID()
+        val existingFlag = createMockFeatureFlag("region-change-flag", "team1", flagId).copy(
+            regions = "WESTEUROPE",
+            rolloutPercentage = 100
+        )
+
+        val westEuropeWs = createMockWorkspace(UUID.randomUUID(), Region.WESTEUROPE)
+        val eastUsWs = createMockWorkspace(UUID.randomUUID(), Region.EASTUS)
+
+        val existingWorkspaceFeatureFlags = listOf(
+            WorkspaceFeatureFlag(UUID.randomUUID(), westEuropeWs, existingFlag, true),
+            WorkspaceFeatureFlag(UUID.randomUUID(), eastUsWs, existingFlag, false)
+        )
+
+        val request = UpdateFeatureFlagRequest(
+            "region-change-flag", "description", "team1",
+            listOf("WESTEUROPE", "EASTUS"), 100
+        )
+        val updatedFlag = existingFlag.copy(regions = "WESTEUROPE,EASTUS", rolloutPercentage = 100)
+
+        every { featureFlagRepository.findById(flagId) } returns Optional.of(existingFlag)
+        every { featureFlagRepository.existsByTeamAndName("team1", "region-change-flag") } returns true
+        every { featureFlagRepository.save(any()) } returns updatedFlag
+        every { workspaceFeatureFlagRepository.findByFeatureFlag(any()) } returns existingWorkspaceFeatureFlags
+
+        val savedWorkspaces = mutableListOf<List<WorkspaceFeatureFlag>>()
+        every { workspaceFeatureFlagRepository.saveAll(capture(savedWorkspaces)) } returns emptyList()
+
+        val result = featureFlagService.updateFeatureFlag(flagId, request)
+
+        assertEquals(100, result.rolloutPercentage)
+        assertEquals(listOf("WESTEUROPE", "EASTUS"), result.regions)
+
+        val saved = savedWorkspaces.first()
+        assert(saved.any { it.workspace.id == eastUsWs.id && it.isEnabled }) {
+            "EASTUS workspace should be enabled after being added to regions"
+        }
+    }
+
+    private fun createMockFeatureFlag(name: String, team: String, id: UUID = UUID.randomUUID()): FeatureFlag {
+        return FeatureFlag(
+            id = id,
+            name = name,
+            description = "Test description",
+            team = team,
+            rolloutPercentage = 50,
+            regions = "ALL",
+            createdAt = LocalDateTime.now(),
+            updatedAt = LocalDateTime.now()
+        )
+    }
+
+    private fun createMockWorkspace(id: UUID = UUID.randomUUID(), region: Region = Region.WESTEUROPE): Workspace {
         return Workspace(
             id = id,
             name = "Test Workspace",
             type = "test",
-            region = null,
+            region = region,
             createdAt = LocalDateTime.now(),
             updatedAt = LocalDateTime.now()
         )
