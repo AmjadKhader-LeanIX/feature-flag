@@ -2,7 +2,7 @@
 
 # 🚀 Feature Flag Management Service
 
-### A modern, multi-tenant feature flag management system
+### A modern, multi-tenant, multi-region feature flag management system with audit logging
 
 [![Kotlin](https://img.shields.io/badge/Kotlin-2.1.0-purple?style=flat-square&logo=kotlin)](https://kotlinlang.org/)
 [![Spring Boot](https://img.shields.io/badge/Spring%20Boot-3.4.0-brightgreen?style=flat-square&logo=spring)](https://spring.io/projects/spring-boot)
@@ -11,7 +11,7 @@
 [![Vue.js](https://img.shields.io/badge/Vue.js-3-green?style=flat-square&logo=vue.js)](https://vuejs.org/)
 [![Docker](https://img.shields.io/badge/Docker-Enabled-blue?style=flat-square&logo=docker)](https://www.docker.com/)
 
-Built with Kotlin, Spring Boot, and PostgreSQL, providing multi-tenant workspace support with team-based feature flags and automatic rollout percentage control.
+Built with Kotlin, Spring Boot, and PostgreSQL, providing multi-tenant workspace support with multi-region feature flags, automatic rollout percentage control, and comprehensive audit logging.
 
 [Features](#-features) •
 [Quick Start](#-getting-started) •
@@ -35,6 +35,8 @@ Built with Kotlin, Spring Boot, and PostgreSQL, providing multi-tenant workspace
 - [Monitoring](#-monitoring)
 - [Architecture](#-architecture)
 - [Feature Flag Rollout Logic](#-feature-flag-rollout-logic)
+- [Multi-Region Support](#-multi-region-support)
+- [Audit Logging](#-audit-logging)
 - [Web UI](#-web-ui)
 - [Development](#-development)
 - [Known Limitations](#-known-limitations)
@@ -55,7 +57,7 @@ Built with Kotlin, Spring Boot, and PostgreSQL, providing multi-tenant workspace
 | **Testing** | JUnit 5, MockK, TestContainers |
 | **Security** | OWASP Dependency Check |
 | **Containerization** | Docker & Docker Compose |
-| **Frontend** | Vue.js 3, Axios |
+| **Frontend** | Vue.js 3, Axios, Font Awesome |
 
 ---
 
@@ -67,32 +69,64 @@ Built with Kotlin, Spring Boot, and PostgreSQL, providing multi-tenant workspace
 <tr>
 <td width="50%">
 
-#### 🏢 Workspace Management
-Multi-tenant architecture with complete workspace isolation
+#### 🏢 Multi-Tenant Workspace Management
+Complete workspace isolation with support for multiple regions per workspace
 
 </td>
 <td width="50%">
 
-#### 🎚️ Feature Flag Management
-Team-based feature flags with rollout percentages (0-100%)
+#### 🌍 Multi-Region Support
+Target feature flags to specific Azure regions or deploy globally
 
 </td>
 </tr>
 <tr>
 <td width="50%">
 
-#### 🔄 Automatic Rollout
-Consistent hash-based distribution of feature flags to workspaces
+#### 🎚️ Advanced Feature Flag Management
+Team-based feature flags with intelligent rollout percentages (0-100%)
 
 </td>
 <td width="50%">
 
-#### 💻 Web UI
-Modern Vue.js interface for managing feature flags and workspaces
+#### 🔄 Smart Rollout Algorithm
+Improved consistent hash-based distribution ensuring stable rollout increases/decreases
+
+</td>
+</tr>
+<tr>
+<td width="50%">
+
+#### 📝 Comprehensive Audit Logging
+Track all CREATE, UPDATE, and DELETE operations with before/after values
+
+</td>
+<td width="50%">
+
+#### 💻 Modern Web UI
+Feature-rich Vue.js interface with real-time updates and region selection
 
 </td>
 </tr>
 </table>
+
+### 🌍 Supported Azure Regions
+
+The system supports targeting feature flags to specific Azure regions:
+
+- 🌐 **ALL** (Global deployment)
+- 🇪🇺 **WESTEUROPE** - West Europe
+- 🇺🇸 **EASTUS** - East US
+- 🇨🇦 **CANADACENTRAL** - Canada Central
+- 🇦🇺 **AUSTRALIAEAST** - Australia East
+- 🇩🇪 **GERMANYWESTCENTRAL** - Germany West Central
+- 🇨🇭 **SWITZERLANDNORTH** - Switzerland North
+- 🇦🇪 **UAENORTH** - UAE North
+- 🇬🇧 **UKSOUTH** - UK South
+- 🇧🇷 **BRAZILSOUTH** - Brazil South
+- 🇸🇬 **SOUTHEASTASIA** - Southeast Asia
+- 🇯🇵 **JAPANEAST** - Japan East
+- 🇪🇺 **NORTHEUROPE** - North Europe
 
 ---
 
@@ -102,21 +136,35 @@ Modern Vue.js interface for managing feature flags and workspaces
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| `GET` | `/api/workspaces` | 📋 List all workspaces |
-| `GET` | `/api/workspaces/{id}` | 🔍 Get workspace by ID |
+| `GET` | `/api/workspaces` | 📋 List all workspaces with their regions |
+| `GET` | `/api/workspaces/{id}` | 🔍 Get workspace by ID with region information |
 
 ### 🎚️ Feature Flags
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| `GET` | `/api/feature-flags` | 📋 List all feature flags |
-| `POST` | `/api/feature-flags` | ➕ Create feature flag |
+| `GET` | `/api/feature-flags` | 📋 List all feature flags with regions |
+| `POST` | `/api/feature-flags` | ➕ Create feature flag with region targeting |
 | `GET` | `/api/feature-flags/{id}` | 🔍 Get feature flag by ID |
-| `PUT` | `/api/feature-flags/{id}` | ✏️ Update feature flag |
+| `PUT` | `/api/feature-flags/{id}` | ✏️ Update feature flag (regions, rollout, etc.) |
 | `DELETE` | `/api/feature-flags/{id}` | ❌ Delete feature flag |
-| `GET` | `/api/feature-flags/workspace/{workspaceId}` | 🏢 Get flags for workspace |
+| `GET` | `/api/feature-flags/workspace/{workspaceId}` | 🏢 Get flags for workspace (region-filtered) |
 | `GET` | `/api/feature-flags/team/{team}` | 👥 Get flags by team |
 | `GET` | `/api/feature-flags/search?name={name}` | 🔎 Search feature flags |
+
+### 📝 Audit Logs
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `GET` | `/api/audit-logs` | 📋 List all audit logs (supports filtering) |
+| `GET` | `/api/audit-logs/feature-flag/{id}` | 🎚️ Get audit logs for specific feature flag |
+| `GET` | `/api/audit-logs/team/{team}` | 👥 Get audit logs by team |
+| `GET` | `/api/audit-logs/operation/{operation}` | 🔍 Get logs by operation (CREATE/UPDATE/DELETE) |
+
+**Query Parameters for `/api/audit-logs`:**
+- `featureFlagId` - Filter by feature flag ID
+- `team` - Filter by team name
+- `operation` - Filter by operation type (CREATE, UPDATE, DELETE)
 
 ---
 
@@ -126,28 +174,58 @@ The service uses PostgreSQL with the following main tables:
 
 | Table | Description | Key Fields |
 |-------|-------------|------------|
-| **`workspaces`** | 🏢 Multi-tenant workspaces | `id`, `name`, `type`, `created_at`, `updated_at` |
-| **`feature_flag`** | 🎚️ Feature flag definitions | `id`, `name`, `description`, `team`, `rollout_percentage` |
-| **`workspace_feature_flag`** | 🔗 Workspace-flag relationships | `workspace_id`, `feature_flag_id`, `enabled` |
+| **`workspaces`** | 🏢 Multi-tenant workspaces | `id`, `name`, `type`, `region`, `created_at`, `updated_at` |
+| **`feature_flag`** | 🎚️ Feature flag definitions | `id`, `name`, `description`, `team`, `rollout_percentage`, `regions`, `created_at`, `updated_at` |
+| **`workspace_feature_flag`** | 🔗 Workspace-flag relationships | `workspace_id`, `feature_flag_id`, `enabled`, `created_at`, `updated_at` |
+| **`feature_flag_audit_log`** | 📝 Audit trail | `id`, `feature_flag_id`, `feature_flag_name`, `operation`, `team`, `old_values`, `new_values`, `changed_by`, `timestamp` |
 
 <details>
 <summary>📊 View ERD Diagram</summary>
 
 ```
-┌─────────────────┐         ┌──────────────────────────┐         ┌─────────────────┐
-│   workspaces    │         │ workspace_feature_flag   │         │  feature_flag   │
-├─────────────────┤         ├──────────────────────────┤         ├─────────────────┤
-│ id (PK)         │◄────────│ workspace_id (FK)        │         │ id (PK)         │
-│ name            │         │ feature_flag_id (FK)     │────────►│ name            │
-│ type            │         │ enabled                  │         │ description     │
-│ created_at      │         │ created_at               │         │ team            │
-│ updated_at      │         │ updated_at               │         │ rollout_%       │
-└─────────────────┘         └──────────────────────────┘         │ created_at      │
-                                                                  │ updated_at      │
-                                                                  └─────────────────┘
+┌─────────────────────┐         ┌──────────────────────────┐         ┌─────────────────────┐
+│     workspaces      │         │ workspace_feature_flag   │         │   feature_flag      │
+├─────────────────────┤         ├──────────────────────────┤         ├─────────────────────┤
+│ id (PK)             │◄────────│ workspace_id (FK)        │         │ id (PK)             │
+│ name                │         │ feature_flag_id (FK)     │────────►│ name                │
+│ type                │         │ enabled                  │         │ description         │
+│ region (ENUM)       │         │ created_at               │         │ team                │
+│ created_at          │         │ updated_at               │         │ rollout_percentage  │
+│ updated_at          │         └──────────────────────────┘         │ regions             │
+└─────────────────────┘                                               │ created_at          │
+                                                                      │ updated_at          │
+                                                                      └──────────┬──────────┘
+                                                                                 │
+                                                                                 │
+                                                         ┌───────────────────────▼──────────────────────┐
+                                                         │       feature_flag_audit_log                 │
+                                                         ├──────────────────────────────────────────────┤
+                                                         │ id (PK)                                      │
+                                                         │ feature_flag_id (FK, nullable)               │
+                                                         │ feature_flag_name                            │
+                                                         │ operation (CREATE/UPDATE/DELETE)             │
+                                                         │ team                                         │
+                                                         │ old_values (JSON)                            │
+                                                         │ new_values (JSON)                            │
+                                                         │ changed_by                                   │
+                                                         │ timestamp                                    │
+                                                         └──────────────────────────────────────────────┘
 ```
 
+
 </details>
+
+### 📊 Database Migrations
+
+The system uses Flyway for version-controlled schema migrations:
+
+| Migration | Description |
+|-----------|-------------|
+| `V1__Initial_schema.sql` | 🏗️ Initial database schema with workspaces and feature flags |
+| `V2__Add_timestamps_to_feature_flag.sql` | ⏰ Added created_at and updated_at timestamps |
+| `V3__Add_region_support.sql` | 🌍 Added region enum and workspace region field |
+| `V4__Add_multiregion_support.sql` | 🌐 Added multi-region support to feature flags |
+| `V5__Add_audit_log.sql` | 📝 Added comprehensive audit logging table |
 
 ---
 
@@ -209,7 +287,6 @@ docker-compose up postgres -d
 | `SERVER_PORT` | `8080` | 🌐 Application port |
 
 ---
----
 
 ## 📝 API Usage Examples
 
@@ -218,12 +295,26 @@ docker-compose up postgres -d
 curl http://localhost:8080/api/workspaces
 ```
 
+**Response:**
+```json
+[
+  {
+    "id": "123e4567-e89b-12d3-a456-426614174000",
+    "name": "Production Workspace",
+    "type": "PRODUCTION",
+    "region": "WESTEUROPE",
+    "createdAt": "2024-01-01T10:00:00",
+    "updatedAt": "2024-01-01T10:00:00"
+  }
+]
+```
+
 ### 🔍 Get Workspace by ID
 ```bash
 curl http://localhost:8080/api/workspaces/{workspace-id}
 ```
 
-### ➕ Create a Feature Flag
+### ➕ Create a Feature Flag with Region Targeting
 ```bash
 curl -X POST http://localhost:8080/api/feature-flags \
   -H "Content-Type: application/json" \
@@ -231,11 +322,30 @@ curl -X POST http://localhost:8080/api/feature-flags \
     "name": "new-checkout-flow",
     "description": "Enable new checkout flow",
     "team": "checkout-team",
+    "regions": ["WESTEUROPE", "EASTUS"],
     "rolloutPercentage": 25
   }'
 ```
 
-> **💡 Note:** When a feature flag is created or updated, the system automatically calculates which workspaces should have it enabled based on the rollout percentage using consistent hashing.
+**Response:**
+```json
+{
+  "id": "456e7890-e89b-12d3-a456-426614174001",
+  "name": "new-checkout-flow",
+  "description": "Enable new checkout flow",
+  "team": "checkout-team",
+  "regions": ["WESTEUROPE", "EASTUS"],
+  "rolloutPercentage": 25,
+  "createdAt": "2024-01-01T10:00:00",
+  "updatedAt": "2024-01-01T10:00:00"
+}
+```
+
+> **💡 Note:** When a feature flag is created or updated, the system:
+> 1. Automatically calculates which workspaces should have it enabled based on rollout percentage
+> 2. Filters workspaces by region (only enables for workspaces in matching regions)
+> 3. Uses consistent hashing for deterministic workspace selection
+> 4. Logs the operation to the audit log
 
 ### ✏️ Update a Feature Flag
 ```bash
@@ -245,6 +355,7 @@ curl -X PUT http://localhost:8080/api/feature-flags/{feature-flag-id} \
     "name": "new-checkout-flow",
     "description": "Enable new checkout flow for more users",
     "team": "checkout-team",
+    "regions": ["ALL"],
     "rolloutPercentage": 50
   }'
 ```
@@ -259,7 +370,9 @@ curl http://localhost:8080/api/feature-flags/team/checkout-team
 curl http://localhost:8080/api/feature-flags/workspace/{workspace-id}
 ```
 
-> **ℹ️** This returns only the feature flags that are enabled for the specified workspace based on rollout percentages.
+> **ℹ️** This returns only the feature flags that are:
+> 1. Enabled for the specified workspace based on rollout percentages
+> 2. Targeted to the workspace's region (or flagged as "ALL")
 
 ### 🔎 Search Feature Flags
 ```bash
@@ -271,7 +384,60 @@ curl "http://localhost:8080/api/feature-flags/search?name=checkout"
 curl -X DELETE http://localhost:8080/api/feature-flags/{feature-flag-id}
 ```
 
----
+### 📝 Get All Audit Logs
+```bash
+curl http://localhost:8080/api/audit-logs
+```
+
+### 📝 Get Audit Logs with Filters
+```bash
+# Filter by feature flag ID
+curl "http://localhost:8080/api/audit-logs?featureFlagId={id}"
+
+# Filter by team
+curl "http://localhost:8080/api/audit-logs?team=checkout-team"
+
+# Filter by operation
+curl "http://localhost:8080/api/audit-logs?operation=UPDATE"
+
+# Combine filters
+curl "http://localhost:8080/api/audit-logs?featureFlagId={id}&operation=UPDATE"
+```
+
+**Response:**
+```json
+[
+  {
+    "id": "789e1011-e89b-12d3-a456-426614174002",
+    "featureFlagId": "456e7890-e89b-12d3-a456-426614174001",
+    "featureFlagName": "new-checkout-flow",
+    "operation": "UPDATE",
+    "team": "checkout-team",
+    "oldValues": "{\"rolloutPercentage\":25,\"regions\":[\"WESTEUROPE\"]}",
+    "newValues": "{\"rolloutPercentage\":50,\"regions\":[\"ALL\"]}",
+    "changedBy": null,
+    "timestamp": "2024-01-01T11:00:00"
+  }
+]
+```
+
+### 📝 Get Audit Logs for a Specific Feature Flag
+```bash
+curl http://localhost:8080/api/audit-logs/feature-flag/{feature-flag-id}
+```
+
+### 📝 Get Audit Logs by Team
+```bash
+curl http://localhost:8080/api/audit-logs/team/checkout-team
+```
+
+### 📝 Get Audit Logs by Operation
+```bash
+curl http://localhost:8080/api/audit-logs/operation/CREATE
+```
+
+> **Operations:** `CREATE`, `UPDATE`, `DELETE`
+
 ---
 
 ## 🧪 Testing
@@ -280,6 +446,12 @@ curl -X DELETE http://localhost:8080/api/feature-flags/{feature-flag-id}
 ```bash
 ./gradlew test
 ```
+
+The test suite includes:
+- **Unit Tests:** Service layer business logic
+- **Controller Tests:** REST API endpoints
+- **Integration Tests:** End-to-end workflows with TestContainers
+- **Exception Handler Tests:** Error handling scenarios
 
 ### 📊 View Test Reports
 After running tests, view the HTML report at:
@@ -308,32 +480,32 @@ The application includes Spring Boot Actuator endpoints:
 
 ## 🏗️ Architecture
 
-The application follows a **layered architecture**:
+The application follows a **layered architecture** with clear separation of concerns:
 
 ```
-┌─────────────┐
-│  Vue.js UI  │  💻 Frontend
-└──────┬──────┘
-       │
-┌──────▼──────┐
-│  REST API   │  🌐 HTTP Layer
-└──────┬──────┘
-       │
-┌──────▼──────┐
-│ Controllers │  📡 Request Handling
-└──────┬──────┘
-       │
-┌──────▼──────┐
-│  Services   │  ⚙️ Business Logic
-└──────┬──────┘
-       │
-┌──────▼──────┐
-│Repositories │  💾 Data Access
-└──────┬──────┘
-       │
-┌──────▼──────┐
-│  PostgreSQL │  🐘 Database
-└─────────────┘
+┌─────────────────┐
+│   Vue.js UI     │  💻 Frontend (SPA)
+└────────┬────────┘
+         │
+┌────────▼────────┐
+│   REST API      │  🌐 HTTP/JSON Interface
+└────────┬────────┘
+         │
+┌────────▼────────┐
+│  Controllers    │  📡 Request Handling & Validation
+└────────┬────────┘
+         │
+┌────────▼────────┐
+│   Services      │  ⚙️ Business Logic & Orchestration
+└────────┬────────┘
+         │
+┌────────▼────────┐
+│  Repositories   │  💾 Data Access Layer (Spring Data JPA)
+└────────┬────────┘
+         │
+┌────────▼────────┐
+│   PostgreSQL    │  🐘 Persistent Storage
+└─────────────────┘
 ```
 
 ### 🔧 Components:
@@ -342,76 +514,87 @@ The application follows a **layered architecture**:
 <tr>
 <td width="33%">
 
-**🎨 Frontend**
+**🎨 Frontend Layer**
 - Vue.js 3 SPA
-- Axios for API calls
-- Real-time updates
+- Component-based architecture
+- Axios for API communication
+- Real-time UI updates
+- Region selection dropdowns
 
 </td>
 <td width="33%">
 
-**📡 Controllers**
-- REST endpoints
-- Jakarta validation
-- Request mapping
+**📡 Controller Layer**
+- `FeatureFlagController`
+- `WorkspaceController`
+- `AuditLogController`
+- Jakarta Bean Validation
+- RESTful endpoints
 
 </td>
 <td width="33%">
 
-**⚙️ Services**
+**⚙️ Service Layer**
+- `FeatureFlagService`
+- `WorkspaceService`
+- `AuditLogService`
 - Business logic
-- Rollout calculation
-- Transactions
+- Transaction management
+- Rollout calculations
 
 </td>
 </tr>
 <tr>
 <td width="33%">
 
-**💾 Repositories**
+**💾 Repository Layer**
+- `FeatureFlagRepository`
+- `WorkspaceRepository`
+- `WorkspaceFeatureFlagRepository`
+- `FeatureFlagAuditLogRepository`
 - Spring Data JPA
 - Custom queries
-- Database access
 
 </td>
 <td width="33%">
 
-**📦 Entities**
-- JPA entities
-- Relationships
-- Constraints
+**📦 Entity Layer**
+- `FeatureFlag`
+- `Workspace`
+- `WorkspaceFeatureFlag`
+- `FeatureFlagAuditLog`
+- `Region` enum
+- `AuditOperation` enum
+- JPA relationships
 
 </td>
 <td width="33%">
 
-**📤 DTOs**
-- Request/Response objects
+**📤 DTO Layer**
+- `FeatureFlagDto`
+- `CreateFeatureFlagRequest`
+- `UpdateFeatureFlagRequest`
+- `WorkspaceDto`
+- `AuditLogDto`
 - Validation rules
-- Data transfer
 
 </td>
 </tr>
 </table>
 
-### 📚 Key Entities:
+### 📚 Key Design Patterns:
 
-- **`Workspace`** - Multi-tenant workspaces
-- **`FeatureFlag`** - Feature flag definitions
-- **`WorkspaceFeatureFlag`** - Join table with enabled status
+- **Repository Pattern** - Data access abstraction
+- **Service Layer Pattern** - Business logic encapsulation
+- **DTO Pattern** - Data transfer and validation
+- **Transaction Management** - ACID compliance
+- **Dependency Injection** - Loose coupling via Spring
 
-### 📋 DTOs:
-
-- **`FeatureFlagDto`** - Feature flag data
-- **`CreateFeatureFlagRequest`** - Create request
-- **`UpdateFeatureFlagRequest`** - Update request
-- **`WorkspaceDto`** - Workspace data
-
----
 ---
 
 ## 🎯 Feature Flag Rollout Logic
 
-The service uses a **consistent hash-based approach** for automatic feature flag distribution:
+The service uses an **improved deterministic hash-based approach** for automatic feature flag distribution across workspaces with guaranteed consistency during rollout changes.
 
 ### ⚙️ How It Works:
 
@@ -427,11 +610,17 @@ When a feature flag is created or its rollout percentage is updated, the system 
 <tr>
 <td>
 
-#### 2️⃣ **Consistent Hashing**
-```
-Hash = (feature_flag_id + workspace_id).hashCode()
-Bucket = abs(Hash) % 100
-Enabled = Bucket < rollout_percentage
+#### 2️⃣ **Deterministic Workspace Selection**
+```kotlin
+// Sort all workspaces by a deterministic hash
+val sortedWorkspaces = workspaces.sortedBy { workspace ->
+    abs((featureFlagId + workspaceId).hashCode())
+}
+
+// Calculate exact number to enable
+val targetCount = (totalWorkspaces * percentage / 100.0).toInt()
+
+// Enable the first 'targetCount' workspaces in sorted order
 ```
 
 </td>
@@ -439,8 +628,20 @@ Enabled = Bucket < rollout_percentage
 <tr>
 <td>
 
-#### 3️⃣ **Consistency Guarantee**
-The same feature flag will always be enabled/disabled for the same workspace at a given rollout percentage.
+#### 3️⃣ **Stability Guarantees**
+- **Increasing percentage (30% → 50%)**: Previously enabled workspaces stay enabled + new ones get enabled
+- **Decreasing percentage (50% → 30%)**: Only the top-ranked workspaces stay enabled, others get disabled
+- **Same workspace-flag combination**: Always produces the same hash/rank
+
+</td>
+</tr>
+<tr>
+<td>
+
+#### 4️⃣ **Region Filtering**
+Before rollout calculation, workspaces are filtered by region:
+- Feature flag with `regions: ["WESTEUROPE"]` only affects workspaces in WESTEUROPE
+- Feature flag with `regions: ["ALL"]` affects all workspaces globally
 
 </td>
 </tr>
@@ -451,55 +652,242 @@ The same feature flag will always be enabled/disabled for the same workspace at 
 | Rollout % | Behavior | Description |
 |-----------|----------|-------------|
 | **0%** | 🔴 Disabled | Feature flag disabled for all workspaces |
-| **1-99%** | 🟡 Partial | Distributed based on consistent hashing |
-| **100%** | 🟢 Enabled | Feature flag enabled for all workspaces |
+| **1-99%** | 🟡 Partial | Deterministically distributed based on workspace ranking |
+| **100%** | 🟢 Enabled | Feature flag enabled for all workspaces in target regions |
 
-### 💡 Example:
+### 💡 Example Scenario:
 
-> If a feature flag has a **25% rollout**:
-> - System hashes each `(feature_flag_id + workspace_id)` combination
-> - ~25% of workspaces will have the flag enabled
-> - The same workspaces will **always** be in that 25% (deterministic)
+> **1000 workspaces in WESTEUROPE, feature flag targeting WESTEUROPE**
+>
+> **At 30% rollout:**
+> - System deterministically ranks all 1000 workspaces
+> - Enables exactly 300 workspaces (those ranked 0-299)
+> - These 300 workspaces are always the same for this flag
+>
+> **Increase to 50%:**
+> - The original 300 stay enabled (ranks 0-299)
+> - Additional 200 get enabled (ranks 300-499)
+> - Total: 500 workspaces enabled
+>
+> **Decrease to 20%:**
+> - Only top 200 stay enabled (ranks 0-199)
+> - The other 100 get disabled (ranks 200-299)
+> - Total: 200 workspaces enabled
+
+### 🔄 Algorithm Benefits:
+
+✅ **Deterministic** - Same workspace always gets same treatment at a given percentage
+✅ **Stable on increase** - Previously enabled workspaces stay enabled
+✅ **Minimal churn on decrease** - Only necessary workspaces get disabled
+✅ **Region-aware** - Respects regional boundaries
+✅ **Exact percentages** - Achieves precise target counts
 
 ---
+
+## 🌍 Multi-Region Support
+
+The system provides comprehensive multi-region functionality for both workspaces and feature flags.
+
+### 🏢 Workspace Regions
+
+Each workspace is assigned to a specific Azure region:
+
+```json
+{
+  "id": "123e4567-e89b-12d3-a456-426614174000",
+  "name": "EU Production",
+  "type": "PRODUCTION",
+  "region": "WESTEUROPE"
+}
+```
+
+### 🎚️ Feature Flag Region Targeting
+
+Feature flags can target one or more regions, or be deployed globally:
+
+```json
+{
+  "name": "new-feature",
+  "team": "platform",
+  "regions": ["WESTEUROPE", "EASTUS"],
+  "rolloutPercentage": 50
+}
+```
+
+### 🔍 Region Filtering Logic
+
+When retrieving feature flags for a workspace:
+
+1. **Check workspace region** - Determine the workspace's region (e.g., WESTEUROPE)
+2. **Filter by regions** - Only return flags where:
+   - `regions` contains "ALL", OR
+   - `regions` contains the workspace's region
+3. **Apply rollout** - Check if workspace is in the rollout percentage for matching flags
+
+### 🌐 Region Examples:
+
+| Feature Flag Regions | Workspace Region | Match? |
+|---------------------|------------------|--------|
+| `["ALL"]` | WESTEUROPE | ✅ Yes |
+| `["WESTEUROPE"]` | WESTEUROPE | ✅ Yes |
+| `["EASTUS"]` | WESTEUROPE | ❌ No |
+| `["WESTEUROPE", "EASTUS"]` | WESTEUROPE | ✅ Yes |
+| `["WESTEUROPE", "EASTUS"]` | JAPANEAST | ❌ No |
+
+### 🎯 Use Cases:
+
+- **Global rollout**: Set `regions: ["ALL"]` to target all workspaces
+- **Regional rollout**: Set `regions: ["WESTEUROPE"]` for EU-specific features
+- **Multi-region rollout**: Set `regions: ["WESTEUROPE", "EASTUS", "UKSOUTH"]` for multiple regions
+- **Regional testing**: Test features in specific regions before global deployment
+
+---
+
+## 📝 Audit Logging
+
+Comprehensive audit logging tracks all feature flag lifecycle events.
+
+### 📊 What's Logged:
+
+Every CREATE, UPDATE, and DELETE operation on feature flags is automatically logged with:
+
+- **Operation Type** - CREATE, UPDATE, or DELETE
+- **Feature Flag Details** - ID and name
+- **Team** - Team responsible for the flag
+- **Old Values** - Previous state (for UPDATE operations)
+- **New Values** - New state (for CREATE and UPDATE operations)
+- **Changed By** - User who made the change (future enhancement)
+- **Timestamp** - When the operation occurred
+
+### 🔍 Audit Log Entry Example:
+
+```json
+{
+  "id": "789e1011-e89b-12d3-a456-426614174002",
+  "featureFlagId": "456e7890-e89b-12d3-a456-426614174001",
+  "featureFlagName": "new-checkout-flow",
+  "operation": "UPDATE",
+  "team": "checkout-team",
+  "oldValues": "{\"rolloutPercentage\":25,\"regions\":[\"WESTEUROPE\"],\"description\":\"Initial rollout\"}",
+  "newValues": "{\"rolloutPercentage\":50,\"regions\":[\"ALL\"],\"description\":\"Expanded rollout\"}",
+  "changedBy": null,
+  "timestamp": "2024-01-01T11:00:00"
+}
+```
+
+### 📋 Querying Audit Logs:
+
+The system provides flexible audit log querying:
+
+```bash
+# All audit logs
+GET /api/audit-logs
+
+# Filter by feature flag
+GET /api/audit-logs?featureFlagId={id}
+
+# Filter by team
+GET /api/audit-logs?team=checkout-team
+
+# Filter by operation
+GET /api/audit-logs?operation=UPDATE
+
+# Combine filters
+GET /api/audit-logs?team=checkout-team&operation=CREATE
+```
+
+### 🎯 Use Cases:
+
+- **Compliance** - Track who changed what and when
+- **Debugging** - Understand flag history and changes
+- **Analytics** - Analyze team activity and flag lifecycle
+- **Rollback** - See previous configurations for potential rollback
+- **Accountability** - Maintain audit trail for all operations
+
+### 🔐 Future Enhancement:
+
+Currently, `changedBy` is nullable (set to `null`). Future versions will integrate with authentication to capture the actual user making changes.
+
 ---
 
 ## 💻 Web UI
 
-The application includes a modern web interface built with **Vue.js 3**:
+The application includes a modern, feature-rich web interface built with **Vue.js 3**.
 
 ### 🌐 Access
 
 **Location:** http://localhost:8080
 
-### ✨ Features
+### ✨ UI Features
 
 <table>
 <tr>
 <td width="50%">
 
-✅ View and manage workspaces
-✅ Create, edit, and delete feature flags
-✅ Control rollout percentages with visual feedback
+#### 🏢 Workspace Management
+- View all workspaces with region information
+- Filter and search workspaces
+- See workspace-specific feature flag status
 
 </td>
 <td width="50%">
 
-✅ Search and filter functionality
-✅ Real-time updates
-✅ Modern, responsive design
+#### 🎚️ Feature Flag Management
+- Create, edit, and delete feature flags
+- Visual rollout percentage sliders
+- Multi-region selection with checkboxes
+- Team-based organization
+
+</td>
+</tr>
+<tr>
+<td width="50%">
+
+#### 📝 Audit Log Viewer
+- View complete audit trail
+- Filter by team, operation, or feature flag
+- See before/after values for changes
+- Timestamp-sorted history
+
+</td>
+<td width="50%">
+
+#### 🎨 Modern UX
+- Responsive design
+- Real-time updates
+- Toast notifications
+- Modal dialogs
+- Loading states
+- Error handling
 
 </td>
 </tr>
 </table>
 
-### 📁 Static Resources:
+### 📁 Frontend Architecture:
 
-| File | Description |
-|------|-------------|
-| `index.html` | 📄 Main HTML page |
-| `app.js` | ⚛️ Vue.js application logic |
-| `styles.css` | 🎨 Styling |
+| File/Directory | Description |
+|----------------|-------------|
+| `index.html` | 📄 Main HTML page with Vue.js integration |
+| `js/app.js` | ⚛️ Main Vue.js application and state management |
+| `js/services/api-service.js` | 🌐 API client with Axios |
+| `js/components/` | 🧩 Reusable Vue components |
+| `js/components/FeatureFlagFormComponent.js` | 📝 Feature flag creation/editing form |
+| `js/components/ModalComponent.js` | 🪟 Modal dialog component |
+| `js/components/ToastComponent.js` | 🔔 Notification toast component |
+| `js/utils/helpers.js` | 🛠️ Utility functions |
+| `css/variables.css` | 🎨 CSS custom properties (design tokens) |
+| `css/base.css` | 📐 Base styles and layout |
+| `css/components.css` | 🧩 Component-specific styles |
+
+### 🎨 Design System:
+
+- **Color Palette** - Primary, secondary, success, warning, danger colors
+- **Typography** - Consistent font sizes and weights
+- **Spacing** - 8px grid system
+- **Components** - Buttons, cards, forms, tables, badges, modals
+- **Icons** - Font Awesome 6.5.1 integration
+- **Responsive** - Mobile-first approach
 
 ---
 
@@ -509,10 +897,13 @@ The application includes a modern web interface built with **Vue.js 3**:
 
 Database schema changes are managed with **Flyway migrations** in `src/main/resources/db/migration/`:
 
-| Migration | Description |
-|-----------|-------------|
-| `V1__Initial_schema.sql` | 🏗️ Initial database schema |
-| `V2__Add_timestamps_to_feature_flag.sql` | ⏰ Added timestamps to feature flags |
+| Migration | Description | Changes |
+|-----------|-------------|---------|
+| `V1__Initial_schema.sql` | 🏗️ Initial database schema | Workspaces, feature flags, workspace_feature_flag tables |
+| `V2__Add_timestamps_to_feature_flag.sql` | ⏰ Timestamp tracking | Added created_at, updated_at to feature_flag |
+| `V3__Add_region_support.sql` | 🌍 Region support | Added region enum and workspace.region column |
+| `V4__Add_multiregion_support.sql` | 🌐 Multi-region flags | Added regions column to feature_flag |
+| `V5__Add_audit_log.sql` | 📝 Audit logging | Created feature_flag_audit_log table |
 
 ### 📂 Project Structure
 
@@ -520,45 +911,18 @@ Database schema changes are managed with **Flyway migrations** in `src/main/reso
 src/
 ├── main/
 │   ├── kotlin/com/featureflag/
-│   │   ├── FeatureFlagApplication.kt       # 🚀 Main application
-│   │   ├── controller/
-│   │   │   ├── FeatureFlagController.kt    # 🎚️ Feature flag endpoints
-│   │   │   └── WorkspaceController.kt      # 🏢 Workspace endpoints
-│   │   ├── dto/
-│   │   │   ├── FeatureFlagDto.kt           # 📦 Feature flag DTOs
-│   │   │   └── WorkspaceDto.kt             # 📦 Workspace DTOs
-│   │   ├── entity/
-│   │   │   ├── FeatureFlag.kt              # 🗃️ Feature flag entity
-│   │   │   ├── Workspace.kt                # 🗃️ Workspace entity
-│   │   │   └── WorkspaceFeatureFlag.kt     # 🗃️ Join table entity
-│   │   ├── exception/
-│   │   │   └── ...                         # ⚠️ Exception handlers
-│   │   ├── repository/
-│   │   │   └── ...                         # 💾 JPA repositories
-│   │   └── service/
-│   │       ├── FeatureFlagService.kt       # ⚙️ Feature flag logic
-│   │       └── WorkspaceService.kt         # ⚙️ Workspace logic
+│   │   ├── controller/              # 📡 REST API endpoints
+│   │   ├── dto/                     # 📦 Data Transfer Objects
+│   │   ├── entity/                  # 🗃️ JPA entities
+│   │   ├── exception/               # ⚠️ Error handling
+│   │   ├── repository/              # 💾 Data access layer
+│   │   └── service/                 # ⚙️ Business logic
 │   └── resources/
-│       ├── application.yml                 # ⚙️ Configuration
-│       ├── db/migration/                   # 📊 Database migrations
-│       └── static/                         # 🌐 Web UI files
-└── test/
-    └── kotlin/com/featureflag/
-        └── ...                             # 🧪 Tests
+│       ├── application.yml          # ⚙️ Configuration
+│       ├── db/migration/            # 📊 Database migrations
+│       └── static/                  # 🌐 Frontend files
+└── test/                            # 🧪 Test suites
 ```
-
-### ➕ Adding New Features
-
-| Step | Action |
-|------|--------|
-| 1️⃣ | Create/update entities in `entity/` package |
-| 2️⃣ | Add repository methods using Spring Data JPA |
-| 3️⃣ | Implement business logic in `service/` package |
-| 4️⃣ | Create REST endpoints in `controller/` package |
-| 5️⃣ | Add DTOs for request/response in `dto/` package |
-| 6️⃣ | Write unit and integration tests |
-| 7️⃣ | Update database migrations if needed |
-| 8️⃣ | Update this documentation |
 
 ### 🔨 Building
 
@@ -569,46 +933,47 @@ src/
 # Build without tests
 ./gradlew clean build -x test
 
+# Run tests only
+./gradlew test
+
 # Create Docker image
 docker build -t feature-flag:latest .
+
+# Build and run with Docker Compose
+docker-compose up --build
+```
+
+### 🐛 Debugging
+
+```bash
+# Run with debug logging
+./gradlew bootRun --args='--logging.level.com.featureflag=DEBUG'
+
+# Run in debug mode (IDE attach on port 5005)
+./gradlew bootRun --debug-jvm
 ```
 
 ---
 
 ## ⚠️ Known Limitations
 
-| Issue | Description |
-|-------|-------------|
-| 🔄 **Rollout Logic** | The rollout percentage logic currently resets all workspace associations when updating, which may cause unintended changes for workspaces that had the flag enabled |
-| 🔒 **Authentication** | No authentication/authorization implemented |
-| 📝 **Workspace API** | Workspace creation and management endpoints are read-only via API |
+| Issue | Description | Workaround |
+|-------|-------------|------------|
+| 🔒 **No Authentication** | No user authentication or authorization implemented | Use behind a secure proxy/gateway |
+| 👤 **Audit Logging** | `changedBy` field is always null - no user tracking | Manual tracking or future auth integration |
 
 ---
 
 ## 🚧 Future Enhancements
 
-- [ ] 🔄 Improve rollout logic to handle incremental updates
-- [ ] 🔒 Add authentication and authorization
-- [ ] ✏️ Implement workspace CRUD operations (create, update, delete)
+### High Priority
+- [ ] 🔒 Add authentication and authorization (OAuth2, JWT)
+- [ ] 👤 Track user identity in audit logs (`changedBy` field)
+- [ ] 📊 Add metrics dashboard for flag usage analytics
+
+### Medium Priority
 - [ ] ⏰ Add feature flag scheduling (enable/disable at specific times)
-- [ ] 📝 Add audit logging for all changes
-- [ ] 📦 Implement feature flag versioning
-- [ ] 📊 Add metrics and analytics for flag usage
-- [ ] 👤 Add user-specific overrides in addition to workspace-based rollout
-
----
-
-## 🤝 Contributing
-
-We welcome contributions! Please follow these guidelines:
-
-| Step | Action |
-|------|--------|
-| 1️⃣ | Follow the existing code style |
-| 2️⃣ | Add comprehensive tests for new functionality |
-| 3️⃣ | Update API documentation and this README |
-| 4️⃣ | Ensure all tests pass: `./gradlew test` |
-| 5️⃣ | Run security checks: `./gradlew dependencyCheckAnalyze` |
+- [ ] 📦 Implement feature flag versioning and rollback
 
 ---
 
@@ -622,6 +987,6 @@ This project is for **educational and demonstration purposes**.
 
 **[⬆ back to top](#-feature-flag-management-service)**
 
+Made with ❤️ using Kotlin, Spring Boot, and Vue.js
+
 </div>
-
-
