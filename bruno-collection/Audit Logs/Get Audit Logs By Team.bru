@@ -1,0 +1,19 @@
+meta {
+  name: Get Audit Logs By Team
+  type: http
+  seq: 3
+}
+
+get {
+  url: {{baseUrl}}/api/audit-logs/team/:team
+  body: none
+  auth: none
+}
+
+params:path {
+  team: platform
+}
+
+docs {
+  Get all audit logs for a specific team
+}

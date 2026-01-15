@@ -1,0 +1,32 @@
+meta {
+  name: Update Workspace Feature Flags
+  type: http
+  seq: 9
+}
+
+put {
+  url: {{baseUrl}}/api/feature-flags/:id/workspaces
+  body: json
+  auth: none
+}
+
+params:path {
+  id: {{featureFlagId}}
+}
+
+body:json {
+  {
+    "workspaceIds": [
+      "{{workspaceId}}"
+    ],
+    "enabled": true
+  }
+}
+
+docs {
+  Enable or disable a feature flag for specific workspaces
+
+  Required fields:
+  - workspaceIds: Array of workspace UUIDs
+  - enabled: true to enable, false to disable
+}

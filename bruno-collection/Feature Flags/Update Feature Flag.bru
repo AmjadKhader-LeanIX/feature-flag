@@ -1,0 +1,38 @@
+meta {
+  name: Update Feature Flag
+  type: http
+  seq: 7
+}
+
+put {
+  url: {{baseUrl}}/api/feature-flags/:id
+  body: json
+  auth: none
+}
+
+params:path {
+  id: {{featureFlagId}}
+}
+
+body:json {
+  {
+    "name": "updated-feature",
+    "description": "Updated feature flag description",
+    "team": "platform",
+    "regions": ["US", "EU"],
+    "rolloutPercentage": 50
+  }
+}
+
+docs {
+  Update an existing feature flag
+
+  All fields are required:
+  - name: Feature flag name
+  - team: Team name
+  - rolloutPercentage: 0-100
+
+  Optional fields:
+  - description: Feature flag description
+  - regions: List of regions (default: ["ALL"])
+}

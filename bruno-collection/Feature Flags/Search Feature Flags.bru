@@ -1,0 +1,19 @@
+meta {
+  name: Search Feature Flags
+  type: http
+  seq: 5
+}
+
+get {
+  url: {{baseUrl}}/api/feature-flags/search?name=feature
+  body: none
+  auth: none
+}
+
+params:query {
+  name: feature
+}
+
+docs {
+  Search for feature flags by name (partial match)
+}

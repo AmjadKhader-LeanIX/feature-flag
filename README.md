@@ -132,6 +132,26 @@ The system supports targeting feature flags to specific Azure regions:
 
 ## 📡 API Endpoints
 
+### 🔧 API Testing with Bruno
+
+A complete **Bruno API collection** is available in the `bruno-collection/` directory with all API endpoints organized and ready to use.
+
+**Quick Start:**
+1. Install [Bruno](https://www.usebruno.com/) - A fast and git-friendly API client
+2. Open Bruno and select "Open Collection"
+3. Navigate to the `bruno-collection` folder
+4. Start testing all endpoints with pre-configured requests
+
+**Collection includes:**
+- ✅ 10 Feature Flag endpoints
+- ✅ 3 Workspace endpoints
+- ✅ 5 Audit Log endpoints
+- ✅ Environment configuration (Local)
+- ✅ Example request bodies
+- ✅ Documentation for each endpoint
+
+📖 **See [bruno-collection/README.md](bruno-collection/README.md) for complete documentation**
+
 ### 🏢 Workspaces
 
 | Method | Endpoint | Description |

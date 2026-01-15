@@ -1,0 +1,19 @@
+meta {
+  name: Get Feature Flag By ID
+  type: http
+  seq: 2
+}
+
+get {
+  url: {{baseUrl}}/api/feature-flags/:id
+  body: none
+  auth: none
+}
+
+params:path {
+  id: {{featureFlagId}}
+}
+
+docs {
+  Replace {{featureFlagId}} with an actual UUID
+}

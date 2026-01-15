@@ -1,0 +1,34 @@
+meta {
+  name: Create Feature Flag
+  type: http
+  seq: 6
+}
+
+post {
+  url: {{baseUrl}}/api/feature-flags
+  body: json
+  auth: none
+}
+
+body:json {
+  {
+    "name": "new-feature",
+    "description": "New feature flag",
+    "team": "platform",
+    "regions": ["ALL"],
+    "rolloutPercentage": 0
+  }
+}
+
+docs {
+  Create a new feature flag
+
+  Required fields:
+  - name: Feature flag name
+  - team: Team name
+
+  Optional fields:
+  - description: Feature flag description
+  - regions: List of regions (default: ["ALL"])
+  - rolloutPercentage: 0-100 (default: 0)
+}

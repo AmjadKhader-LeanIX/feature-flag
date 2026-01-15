@@ -1,0 +1,19 @@
+meta {
+  name: Get Feature Flags By Team
+  type: http
+  seq: 4
+}
+
+get {
+  url: {{baseUrl}}/api/feature-flags/team/:team
+  body: none
+  auth: none
+}
+
+params:path {
+  team: platform
+}
+
+docs {
+  Replace 'platform' with your team name
+}

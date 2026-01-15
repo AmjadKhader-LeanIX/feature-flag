@@ -1,0 +1,24 @@
+meta {
+  name: Get Audit Logs By Operation
+  type: http
+  seq: 4
+}
+
+get {
+  url: {{baseUrl}}/api/audit-logs/operation/:operation
+  body: none
+  auth: none
+}
+
+params:path {
+  operation: CREATE
+}
+
+docs {
+  Get all audit logs for a specific operation type
+
+  Valid operations:
+  - CREATE
+  - UPDATE
+  - DELETE
+}

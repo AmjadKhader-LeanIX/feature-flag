@@ -1,0 +1,28 @@
+meta {
+  name: Get Audit Logs With Filters
+  type: http
+  seq: 5
+}
+
+get {
+  url: {{baseUrl}}/api/audit-logs?featureFlagId={{featureFlagId}}&operation=UPDATE
+  body: none
+  auth: none
+}
+
+params:query {
+  featureFlagId: {{featureFlagId}}
+  operation: UPDATE
+  ~team: platform
+}
+
+docs {
+  Get audit logs with multiple filters
+
+  Available query parameters:
+  - featureFlagId: UUID of feature flag
+  - team: Team name
+  - operation: CREATE, UPDATE, or DELETE
+
+  Any combination of these filters can be used
+}

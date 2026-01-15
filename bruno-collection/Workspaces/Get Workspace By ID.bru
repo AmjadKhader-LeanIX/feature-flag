@@ -1,0 +1,19 @@
+meta {
+  name: Get Workspace By ID
+  type: http
+  seq: 2
+}
+
+get {
+  url: {{baseUrl}}/api/workspaces/:id
+  body: none
+  auth: none
+}
+
+params:path {
+  id: {{workspaceId}}
+}
+
+docs {
+  Get a workspace by its UUID
+}

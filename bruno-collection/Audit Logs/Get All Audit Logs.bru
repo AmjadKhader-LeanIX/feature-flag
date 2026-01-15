@@ -1,0 +1,18 @@
+meta {
+  name: Get All Audit Logs
+  type: http
+  seq: 1
+}
+
+get {
+  url: {{baseUrl}}/api/audit-logs
+  body: none
+  auth: none
+}
+
+docs {
+  Get all audit logs. Can be filtered with query parameters:
+  - featureFlagId: Filter by feature flag UUID
+  - team: Filter by team name
+  - operation: Filter by operation type (CREATE, UPDATE, DELETE)
+}

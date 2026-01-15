@@ -1,0 +1,19 @@
+meta {
+  name: Get Feature Flags By Workspace
+  type: http
+  seq: 3
+}
+
+get {
+  url: {{baseUrl}}/api/feature-flags/workspace/:workspaceId
+  body: none
+  auth: none
+}
+
+params:path {
+  workspaceId: {{workspaceId}}
+}
+
+docs {
+  Replace {{workspaceId}} with an actual UUID
+}

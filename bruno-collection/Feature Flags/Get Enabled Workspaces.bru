@@ -1,0 +1,19 @@
+meta {
+  name: Get Enabled Workspaces
+  type: http
+  seq: 10
+}
+
+get {
+  url: {{baseUrl}}/api/feature-flags/:id/enabled-workspaces
+  body: none
+  auth: none
+}
+
+params:path {
+  id: {{featureFlagId}}
+}
+
+docs {
+  Get all workspaces where this feature flag is enabled
+}
