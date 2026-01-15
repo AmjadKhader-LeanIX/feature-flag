@@ -3,6 +3,7 @@ package com.featureflag.controller
 import com.featureflag.dto.CreateFeatureFlagRequest
 import com.featureflag.dto.FeatureFlagDto
 import com.featureflag.dto.UpdateFeatureFlagRequest
+import com.featureflag.dto.UpdateWorkspaceFeatureFlagRequest
 import com.featureflag.service.FeatureFlagService
 import jakarta.validation.Valid
 import org.springframework.http.HttpStatus
@@ -65,5 +66,20 @@ class FeatureFlagController(
     fun searchFeatureFlags(@RequestParam name: String): ResponseEntity<List<FeatureFlagDto>> {
         val featureFlags = featureFlagService.searchFeatureFlags(name)
         return ResponseEntity.ok(featureFlags)
+    }
+
+    @PutMapping("/{id}/workspaces")
+    fun updateWorkspaceFeatureFlags(
+        @PathVariable id: UUID,
+        @Valid @RequestBody request: UpdateWorkspaceFeatureFlagRequest
+    ): ResponseEntity<Void> {
+        featureFlagService.updateWorkspaceFeatureFlags(id, request)
+        return ResponseEntity.ok().build()
+    }
+
+    @GetMapping("/{id}/enabled-workspaces")
+    fun getEnabledWorkspaces(@PathVariable id: UUID): ResponseEntity<List<com.featureflag.dto.WorkspaceDto>> {
+        val workspaces = featureFlagService.getEnabledWorkspacesForFeatureFlag(id)
+        return ResponseEntity.ok(workspaces)
     }
 }

@@ -3,6 +3,7 @@ package com.featureflag.service
 import com.featureflag.dto.CreateFeatureFlagRequest
 import com.featureflag.dto.FeatureFlagDto
 import com.featureflag.dto.UpdateFeatureFlagRequest
+import com.featureflag.dto.UpdateWorkspaceFeatureFlagRequest
 import com.featureflag.entity.FeatureFlag
 import com.featureflag.entity.WorkspaceFeatureFlag
 import com.featureflag.exception.ResourceNotFoundException
@@ -11,6 +12,7 @@ import com.featureflag.repository.WorkspaceFeatureFlagRepository
 import com.featureflag.repository.WorkspaceRepository
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
+import java.time.LocalDateTime
 import java.util.*
 import kotlin.math.abs
 
@@ -126,6 +128,110 @@ class FeatureFlagService(
     }
 
     /**
+     * Enable or disable a feature flag for specific workspaces by their IDs.
+     * This allows manual override of the automatic rollout percentage logic.
+     * After updating the workspace flags, automatically recalculates the rollout percentage.
+     *
+     * @param featureFlagId The ID of the feature flag to update
+     * @param request Contains the list of workspace IDs and the enabled flag
+     * @throws ResourceNotFoundException if the feature flag or any workspace is not found
+     */
+    @Transactional
+    fun updateWorkspaceFeatureFlags(featureFlagId: UUID, request: UpdateWorkspaceFeatureFlagRequest) {
+        // Validate feature flag exists
+        val featureFlag = featureFlagRepository.findById(featureFlagId)
+            .orElseThrow { ResourceNotFoundException("Feature flag not found with id: $featureFlagId") }
+
+        // Validate all workspaces exist
+        val workspaces = workspaceRepository.findAllById(request.workspaceIds)
+        if (workspaces.size != request.workspaceIds.size) {
+            throw ResourceNotFoundException("One or more workspaces not found")
+        }
+
+        // Get count of enabled workspaces BEFORE the change
+        val allAssociationsBefore = workspaceFeatureFlagRepository.findByFeatureFlag(featureFlag)
+        val oldEnabledCount = allAssociationsBefore.count { it.isEnabled }
+
+        // Find existing associations for these workspaces
+        val existingAssociations = workspaceFeatureFlagRepository
+            .findByFeatureFlagIdAndWorkspaceIdIn(featureFlagId, request.workspaceIds)
+
+        if (existingAssociations.isEmpty()) {
+            throw IllegalArgumentException("No workspace-feature flag associations found for the specified workspaces")
+        }
+
+        // Update enabled status for all specified workspaces
+        existingAssociations.forEach { association ->
+            association.isEnabled = request.enabled
+            association.updatedAt = LocalDateTime.now()
+        }
+
+        workspaceFeatureFlagRepository.saveAll(existingAssociations)
+
+        // Get count of enabled workspaces AFTER the change
+        val allAssociationsAfter = workspaceFeatureFlagRepository.findByFeatureFlag(featureFlag)
+        val newEnabledCount = allAssociationsAfter.count { it.isEnabled }
+
+        // Recalculate rollout percentage based on current enabled state
+        val oldRolloutPercentage = featureFlag.rolloutPercentage
+        recalculateRolloutPercentage(featureFlag)
+
+        // Reload the feature flag to get the updated rollout percentage
+        val updatedFeatureFlag = featureFlagRepository.findById(featureFlagId)
+            .orElseThrow { ResourceNotFoundException("Feature flag not found with id: $featureFlagId") }
+
+        // Log the workspace update with old and new enabled counts
+        auditLogService.logWorkspaceUpdate(
+            oldEnabledCount = oldEnabledCount,
+            newEnabledCount = newEnabledCount,
+            oldRolloutPercentage = oldRolloutPercentage,
+            newRolloutPercentage = updatedFeatureFlag.rolloutPercentage,
+            featureFlag = updatedFeatureFlag
+        )
+    }
+
+    /**
+     * Recalculates the rollout percentage of a feature flag based on the current enabled state
+     * of all workspace associations in the target regions.
+     */
+    private fun recalculateRolloutPercentage(featureFlag: FeatureFlag) {
+        // Parse regions from string
+        val featureFlagRegions = featureFlag.regions.split(",").map { it.trim() }
+
+        // Get all workspaces in the feature flag's target regions
+        val targetWorkspaces = if (featureFlagRegions.contains("ALL")) {
+            workspaceRepository.findAll()
+        } else {
+            workspaceRepository.findByRegionIn(featureFlagRegions)
+        }
+
+        if (targetWorkspaces.isEmpty()) {
+            val updatedFlag = featureFlag.copy(
+                rolloutPercentage = 0,
+                updatedAt = LocalDateTime.now()
+            )
+            featureFlagRepository.save(updatedFlag)
+            return
+        }
+
+        // Get all workspace associations for this feature flag
+        val allAssociations = workspaceFeatureFlagRepository.findByFeatureFlag(featureFlag)
+
+        // Count how many are enabled
+        val enabledCount = allAssociations.count { it.isEnabled }
+
+        // Calculate percentage
+        val newPercentage = ((enabledCount.toDouble() / targetWorkspaces.size) * 100).toInt()
+
+        // Update the feature flag's rollout percentage
+        val updatedFlag = featureFlag.copy(
+            rolloutPercentage = newPercentage,
+            updatedAt = LocalDateTime.now()
+        )
+        featureFlagRepository.save(updatedFlag)
+    }
+
+    /**
      * Updates the rollout of a feature flag across all workspaces based on the new percentage.
      *
      * This method ensures two critical guarantees:
@@ -163,31 +269,23 @@ class FeatureFlagService(
 
         // Case 1: 0% rollout means disable all workspaces
         if (newPercentage == 0) {
-            val disabledFlags = workspaceFeatureFlagsByRegion.map { existing ->
-                WorkspaceFeatureFlag(
-                    id = existing.id,
-                    workspace = existing.workspace,
-                    featureFlag = existing.featureFlag,
-                    isEnabled = false
-                )
+            workspaceFeatureFlagsByRegion.forEach { existing ->
+                existing.isEnabled = false
+                existing.updatedAt = LocalDateTime.now()
             }
-            if (disabledFlags.isNotEmpty()) {
-                workspaceFeatureFlagRepository.saveAll(disabledFlags)
+            if (workspaceFeatureFlagsByRegion.isNotEmpty()) {
+                workspaceFeatureFlagRepository.saveAll(workspaceFeatureFlagsByRegion)
             }
             return
         }
 
         // Case 2: 100% rollout means enable all workspaces
         if (newPercentage == 100) {
-            val enabledFlags = workspaceFeatureFlagsByRegion.map { existing ->
-                WorkspaceFeatureFlag(
-                    id = existing.id,
-                    workspace = existing.workspace,
-                    featureFlag = existing.featureFlag,
-                    isEnabled = true
-                )
+            workspaceFeatureFlagsByRegion.forEach { existing ->
+                existing.isEnabled = true
+                existing.updatedAt = LocalDateTime.now()
             }
-            workspaceFeatureFlagRepository.saveAll(enabledFlags)
+            workspaceFeatureFlagRepository.saveAll(workspaceFeatureFlagsByRegion)
             return
         }
 
@@ -216,14 +314,9 @@ class FeatureFlagService(
             // - On increase (e.g., 30% → 50%): First 30% stay enabled, next 20% get enabled
             // - On decrease (e.g., 50% → 30%): First 30% stay enabled, remaining 20% get disabled
             if (workspaceFeatureFlag.isEnabled != shouldBeEnabled) {
-                workspacesToUpdate.add(
-                    WorkspaceFeatureFlag(
-                        id = workspaceFeatureFlag.id,
-                        workspace = workspaceFeatureFlag.workspace,
-                        featureFlag = workspaceFeatureFlag.featureFlag,
-                        isEnabled = shouldBeEnabled
-                    )
-                )
+                workspaceFeatureFlag.isEnabled = shouldBeEnabled
+                workspaceFeatureFlag.updatedAt = LocalDateTime.now()
+                workspacesToUpdate.add(workspaceFeatureFlag)
             }
         }
 
@@ -231,6 +324,19 @@ class FeatureFlagService(
         if (workspacesToUpdate.isNotEmpty()) {
             workspaceFeatureFlagRepository.saveAll(workspacesToUpdate)
         }
+    }
+
+    /**
+     * Get all workspaces that have this feature flag enabled
+     */
+    fun getEnabledWorkspacesForFeatureFlag(featureFlagId: UUID): List<com.featureflag.dto.WorkspaceDto> {
+        val featureFlag = featureFlagRepository.findById(featureFlagId)
+            .orElseThrow { ResourceNotFoundException("Feature flag not found with id: $featureFlagId") }
+
+        val enabledAssociations = workspaceFeatureFlagRepository.findByFeatureFlag(featureFlag)
+            .filter { it.isEnabled }
+
+        return enabledAssociations.map { it.workspace.toDto() }
     }
 
     private fun FeatureFlag.toDto(): FeatureFlagDto {
@@ -241,6 +347,17 @@ class FeatureFlagService(
             team = this.team,
             rolloutPercentage = this.rolloutPercentage,
             regions = this.regions.split(",").map { it.trim() },
+            createdAt = this.createdAt,
+            updatedAt = this.updatedAt
+        )
+    }
+
+    private fun com.featureflag.entity.Workspace.toDto(): com.featureflag.dto.WorkspaceDto {
+        return com.featureflag.dto.WorkspaceDto(
+            id = this.id,
+            name = this.name,
+            type = this.type,
+            region = this.region?.toString(),
             createdAt = this.createdAt,
             updatedAt = this.updatedAt
         )

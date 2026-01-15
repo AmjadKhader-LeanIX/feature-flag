@@ -151,6 +151,7 @@ The system supports targeting feature flags to specific Azure regions:
 | `GET` | `/api/feature-flags/workspace/{workspaceId}` | 🏢 Get flags for workspace (region-filtered) |
 | `GET` | `/api/feature-flags/team/{team}` | 👥 Get flags by team |
 | `GET` | `/api/feature-flags/search?name={name}` | 🔎 Search feature flags |
+| `PUT` | `/api/feature-flags/{id}/workspaces` | 🎯 Enable/disable flag for specific workspaces |
 
 ### 📝 Audit Logs
 
@@ -377,6 +378,38 @@ curl http://localhost:8080/api/feature-flags/workspace/{workspace-id}
 ### 🔎 Search Feature Flags
 ```bash
 curl "http://localhost:8080/api/feature-flags/search?name=checkout"
+```
+
+### 🎯 Enable/Disable Feature Flag for Specific Workspaces
+```bash
+curl -X PUT http://localhost:8080/api/feature-flags/{feature-flag-id}/workspaces \
+  -H "Content-Type: application/json" \
+  -d '{
+    "workspaceIds": [
+      "workspace-id-1",
+      "workspace-id-2",
+      "workspace-id-3"
+    ],
+    "enabled": true
+  }'
+```
+
+**Response:** `200 OK` (empty body on success)
+
+> **💡 Use Case:** This endpoint allows manual override of the automatic rollout percentage logic. You can explicitly enable or disable a feature flag for specific workspaces by their IDs, regardless of the current rollout percentage. This is useful for:
+> - Testing features in specific production workspaces
+> - Quick hotfixes (enable/disable for problematic workspaces)
+> - Manual control for VIP customers or critical workspaces
+> - Gradual rollout with manual control
+
+**To disable:**
+```bash
+curl -X PUT http://localhost:8080/api/feature-flags/{feature-flag-id}/workspaces \
+  -H "Content-Type: application/json" \
+  -d '{
+    "workspaceIds": ["workspace-id-1"],
+    "enabled": false
+  }'
 ```
 
 ### ❌ Delete a Feature Flag

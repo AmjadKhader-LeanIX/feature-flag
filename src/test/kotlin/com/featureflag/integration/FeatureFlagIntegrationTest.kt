@@ -3,6 +3,12 @@ package com.featureflag.integration
 import com.featureflag.dto.CreateFeatureFlagRequest
 import com.featureflag.dto.FeatureFlagDto
 import com.featureflag.dto.UpdateFeatureFlagRequest
+import com.featureflag.dto.UpdateWorkspaceFeatureFlagRequest
+import com.featureflag.dto.WorkspaceDto
+import com.featureflag.entity.Region
+import com.featureflag.entity.Workspace
+import com.featureflag.repository.WorkspaceFeatureFlagRepository
+import com.featureflag.repository.WorkspaceRepository
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
@@ -14,15 +20,21 @@ import org.springframework.boot.test.web.server.LocalServerPort
 import org.springframework.http.*
 import org.springframework.test.context.ActiveProfiles
 import org.springframework.transaction.annotation.Transactional
+import java.util.*
 
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @AutoConfigureTestDatabase
 @ActiveProfiles("test")
-@Transactional
 class FeatureFlagIntegrationTest {
 
     @Autowired
     private lateinit var restTemplate: TestRestTemplate
+
+    @Autowired
+    private lateinit var workspaceRepository: WorkspaceRepository
+
+    @Autowired
+    private lateinit var workspaceFeatureFlagRepository: WorkspaceFeatureFlagRepository
 
     @LocalServerPort
     private var port: Int = 0
@@ -327,5 +339,104 @@ class FeatureFlagIntegrationTest {
         assertEquals(HttpStatus.OK, noResultsResponse.statusCode)
         val noResults = noResultsResponse.body!!
         assertEquals(0, noResults.size)
+    }
+
+    @Test
+    fun `should return 404 when trying to update workspace flags for non-existent feature flag`() {
+        val nonExistentId = UUID.randomUUID()
+        val updateRequest = UpdateWorkspaceFeatureFlagRequest(
+            workspaceIds = listOf(UUID.randomUUID()),
+            enabled = true
+        )
+
+        val headers = HttpHeaders()
+        headers.contentType = MediaType.APPLICATION_JSON
+        val updateEntity = HttpEntity(updateRequest, headers)
+
+        val response = restTemplate.exchange(
+            "${baseUrl()}/api/feature-flags/$nonExistentId/workspaces",
+            HttpMethod.PUT,
+            updateEntity,
+            String::class.java
+        )
+        assertEquals(HttpStatus.NOT_FOUND, response.statusCode)
+    }
+
+    @Test
+    fun `should return 404 when trying to update workspace flags for non-existent workspace`() {
+        // Create feature flag
+        val createRequest = CreateFeatureFlagRequest(
+            name = "test-flag-nonexistent-workspace",
+            description = "Test flag",
+            team = "test-team",
+            regions = listOf("ALL"),
+            rolloutPercentage = 50
+        )
+
+        val headers = HttpHeaders()
+        headers.contentType = MediaType.APPLICATION_JSON
+        val createEntity = HttpEntity(createRequest, headers)
+
+        val createResponse = restTemplate.postForEntity(
+            "${baseUrl()}/api/feature-flags",
+            createEntity,
+            FeatureFlagDto::class.java
+        )
+        assertEquals(HttpStatus.CREATED, createResponse.statusCode)
+        val featureFlagId = createResponse.body!!.id!!
+
+        // Try to update with non-existent workspace
+        val updateRequest = UpdateWorkspaceFeatureFlagRequest(
+            workspaceIds = listOf(UUID.randomUUID()),
+            enabled = true
+        )
+        val updateEntity = HttpEntity(updateRequest, headers)
+
+        val response = restTemplate.exchange(
+            "${baseUrl()}/api/feature-flags/$featureFlagId/workspaces",
+            HttpMethod.PUT,
+            updateEntity,
+            String::class.java
+        )
+        assertEquals(HttpStatus.NOT_FOUND, response.statusCode)
+    }
+
+    @Test
+    fun `should return 400 when workspace list is empty`() {
+        // Create feature flag
+        val createRequest = CreateFeatureFlagRequest(
+            name = "test-flag-empty-list",
+            description = "Test flag",
+            team = "test-team",
+            regions = listOf("ALL"),
+            rolloutPercentage = 50
+        )
+
+        val headers = HttpHeaders()
+        headers.contentType = MediaType.APPLICATION_JSON
+        val createEntity = HttpEntity(createRequest, headers)
+
+        val createResponse = restTemplate.postForEntity(
+            "${baseUrl()}/api/feature-flags",
+            createEntity,
+            FeatureFlagDto::class.java
+        )
+        assertEquals(HttpStatus.CREATED, createResponse.statusCode)
+        val featureFlagId = createResponse.body!!.id!!
+
+        // Try to update with empty workspace list
+        val updateRequest = UpdateWorkspaceFeatureFlagRequest(
+            workspaceIds = emptyList(),
+            enabled = true
+        )
+        val updateEntity = HttpEntity(updateRequest, headers)
+
+        val response = restTemplate.exchange(
+            "${baseUrl()}/api/feature-flags/$featureFlagId/workspaces",
+            HttpMethod.PUT,
+            updateEntity,
+            String::class.java
+        )
+        assertEquals(HttpStatus.BAD_REQUEST, response.statusCode)
     }
 }

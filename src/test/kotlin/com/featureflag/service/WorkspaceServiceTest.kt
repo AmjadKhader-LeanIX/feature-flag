@@ -2,6 +2,7 @@ package com.featureflag.service
 
 import com.featureflag.entity.Workspace
 import com.featureflag.exception.ResourceNotFoundException
+import com.featureflag.repository.WorkspaceFeatureFlagRepository
 import com.featureflag.repository.WorkspaceRepository
 import io.mockk.every
 import io.mockk.mockk
@@ -16,12 +17,14 @@ import java.util.*
 class WorkspaceServiceTest {
 
     private lateinit var workspaceRepository: WorkspaceRepository
+    private lateinit var workspaceFeatureFlagRepository: WorkspaceFeatureFlagRepository
     private lateinit var workspaceService: WorkspaceService
 
     @BeforeEach
     fun setUp() {
         workspaceRepository = mockk()
-        workspaceService = WorkspaceService(workspaceRepository)
+        workspaceFeatureFlagRepository = mockk()
+        workspaceService = WorkspaceService(workspaceRepository, workspaceFeatureFlagRepository)
     }
 
     @Test

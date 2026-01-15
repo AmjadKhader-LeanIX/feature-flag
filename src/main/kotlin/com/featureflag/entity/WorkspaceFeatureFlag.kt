@@ -1,6 +1,7 @@
 package com.featureflag.entity
 
 import jakarta.persistence.*
+import java.time.LocalDateTime
 import java.util.*
 
 @Entity
@@ -19,6 +20,11 @@ data class WorkspaceFeatureFlag(
     val featureFlag: FeatureFlag,
 
     @Column(name = "enabled", nullable = false)
-    val isEnabled: Boolean
+    var isEnabled: Boolean,
 
+    @Column(name = "created_at", nullable = false)
+    val createdAt: LocalDateTime = LocalDateTime.now(),
+
+    @Column(name = "updated_at", nullable = false)
+    var updatedAt: LocalDateTime = LocalDateTime.now()
 )

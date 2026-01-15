@@ -1268,3 +1268,432 @@
         padding: var(--spacing-2);
     }
 }
+
+/* ============================================
+   WORKSPACE FEATURE FLAG COMPONENT
+   ============================================ */
+.workspace-feature-flag-form {
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+}
+
+.feature-flag-info {
+    padding: 20px;
+    background: linear-gradient(135deg, rgba(59, 130, 246, 0.05), rgba(139, 92, 246, 0.05));
+    border-radius: var(--radius-xl);
+    border: 1px solid var(--border-color);
+}
+
+.feature-flag-info h3 {
+    font-size: var(--text-xl);
+    font-weight: var(--font-semibold);
+    color: var(--text-primary);
+    margin-bottom: var(--spacing-2);
+}
+
+.feature-flag-info p {
+    color: var(--text-secondary);
+    margin-bottom: var(--spacing-3);
+}
+
+.flag-meta {
+    display: flex;
+    gap: var(--spacing-2);
+    flex-wrap: wrap;
+}
+
+.form-section {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-3);
+}
+
+.form-label {
+    font-weight: var(--font-semibold);
+    color: var(--text-primary);
+    font-size: var(--text-sm);
+    margin-bottom: var(--spacing-2);
+}
+
+.radio-group {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-3);
+}
+
+.radio-option {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-3);
+    padding: var(--spacing-4);
+    border: 2px solid var(--border-color);
+    border-radius: var(--radius-lg);
+    cursor: pointer;
+    transition: all var(--transition-base);
+}
+
+.radio-option:hover {
+    border-color: var(--primary-500);
+    background: var(--bg-secondary);
+}
+
+.radio-option input[type="radio"] {
+    width: 20px;
+    height: 20px;
+    cursor: pointer;
+    accent-color: var(--primary-500);
+}
+
+.radio-option i {
+    font-size: var(--text-xl);
+}
+
+.radio-option span {
+    font-weight: var(--font-medium);
+    color: var(--text-primary);
+}
+
+.workspace-list {
+    max-height: 400px;
+    overflow-y: auto;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-lg);
+    padding: var(--spacing-2);
+}
+
+.workspace-item {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-3);
+    padding: var(--spacing-3);
+    border-radius: var(--radius-md);
+    cursor: pointer;
+    transition: all var(--transition-base);
+    border: 1px solid transparent;
+}
+
+.workspace-item:hover {
+    background: var(--bg-secondary);
+}
+
+.workspace-item.selected {
+    background: var(--primary-50);
+    border-color: var(--primary-200);
+}
+
+.workspace-item input[type="checkbox"] {
+    width: 20px;
+    height: 20px;
+    cursor: pointer;
+    accent-color: var(--primary-500);
+}
+
+.workspace-info {
+    flex: 1;
+}
+
+.workspace-name {
+    font-weight: var(--font-medium);
+    color: var(--text-primary);
+    font-size: var(--text-sm);
+    margin-bottom: var(--spacing-1);
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-2);
+}
+
+.workspace-meta {
+    display: flex;
+    gap: var(--spacing-2);
+    flex-wrap: wrap;
+}
+
+.form-actions {
+    display: flex;
+    gap: var(--spacing-3);
+    justify-content: flex-end;
+    padding-top: var(--spacing-4);
+    border-top: 1px solid var(--border-color);
+}
+
+.btn-info {
+    background: linear-gradient(135deg, var(--info-500) 0%, var(--info-700) 100%);
+    color: var(--text-inverse);
+    box-shadow: 0 4px 12px -2px rgba(14, 165, 233, 0.3);
+}
+
+.btn-info:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 16px -4px rgba(14, 165, 233, 0.4);
+}
+
+/* ============================================
+   WORKSPACE CARDS GRID
+   ============================================ */
+.workspace-cards-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(380px, 1fr));
+    gap: var(--spacing-6);
+    padding: var(--spacing-6);
+}
+
+.workspace-card {
+    background: var(--bg-elevated);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-xl);
+    box-shadow: var(--shadow-sm);
+    transition: all var(--transition-base);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.workspace-card:hover {
+    transform: translateY(-4px);
+    box-shadow: var(--shadow-lg);
+    border-color: var(--primary-200);
+}
+
+.workspace-card-header {
+    padding: var(--spacing-5);
+    border-bottom: 1px solid var(--border-color);
+    background: linear-gradient(135deg, rgba(59, 130, 246, 0.03), rgba(139, 92, 246, 0.03));
+}
+
+.workspace-card-title {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-3);
+    margin-bottom: var(--spacing-3);
+}
+
+.workspace-card-title i {
+    font-size: var(--text-xl);
+    color: var(--primary-500);
+}
+
+.workspace-card-title h3 {
+    font-size: var(--text-lg);
+    font-weight: var(--font-semibold);
+    color: var(--text-primary);
+    margin: 0;
+}
+
+.workspace-card-meta {
+    display: flex;
+    gap: var(--spacing-2);
+    flex-wrap: wrap;
+}
+
+.workspace-card-body {
+    padding: var(--spacing-5);
+    flex: 1;
+}
+
+.workspace-flags-section h4 {
+    font-size: var(--text-base);
+    font-weight: var(--font-semibold);
+    color: var(--text-primary);
+    margin-bottom: var(--spacing-4);
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-2);
+}
+
+.workspace-flags-section h4 i {
+    color: var(--primary-500);
+}
+
+.no-flags-message {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-2);
+    padding: var(--spacing-4);
+    background: var(--bg-secondary);
+    border-radius: var(--radius-lg);
+    color: var(--text-secondary);
+    font-size: var(--text-sm);
+    font-style: italic;
+}
+
+.no-flags-message i {
+    color: var(--info-500);
+}
+
+.flags-list {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-3);
+    max-height: 300px;
+    overflow-y: auto;
+    padding-right: var(--spacing-2);
+}
+
+.flag-item {
+    padding: var(--spacing-3);
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-lg);
+    transition: all var(--transition-base);
+}
+
+.flag-item:hover {
+    background: var(--bg-tertiary);
+    border-color: var(--primary-200);
+    transform: translateX(4px);
+}
+
+.flag-item-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: var(--spacing-2);
+    gap: var(--spacing-2);
+}
+
+.flag-item-name {
+    font-weight: var(--font-medium);
+    color: var(--text-primary);
+    font-size: var(--text-sm);
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-2);
+    flex: 1;
+}
+
+.flag-item-name i {
+    color: var(--primary-500);
+    font-size: var(--text-xs);
+}
+
+.flag-item-description {
+    font-size: var(--text-xs);
+    color: var(--text-secondary);
+    margin-bottom: var(--spacing-2);
+    line-height: 1.5;
+}
+
+.flag-item-meta {
+    display: flex;
+    gap: var(--spacing-2);
+    flex-wrap: wrap;
+}
+
+.workspace-card-footer {
+    padding: var(--spacing-4) var(--spacing-5);
+    border-top: 1px solid var(--border-color);
+    background: var(--bg-secondary);
+    display: flex;
+    justify-content: flex-end;
+}
+
+/* ============================================
+   PAGINATION CONTROLS
+   ============================================ */
+.pagination-controls {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: var(--spacing-5) var(--spacing-6);
+    border-top: 1px solid var(--border-color);
+    background: var(--bg-secondary);
+    gap: var(--spacing-4);
+    flex-wrap: wrap;
+}
+
+.pagination-info {
+    color: var(--text-secondary);
+    font-size: var(--text-sm);
+    font-weight: var(--font-medium);
+}
+
+.pagination-buttons {
+    display: flex;
+    gap: var(--spacing-3);
+    align-items: center;
+}
+
+.pagination-page-info {
+    color: var(--text-secondary);
+    font-size: var(--text-sm);
+    font-weight: var(--font-medium);
+    padding: 0 var(--spacing-3);
+    white-space: nowrap;
+}
+
+/* ============================================
+   RESPONSIVE DESIGN - WORKSPACE CARDS
+   ============================================ */
+@media (max-width: 1200px) {
+    .workspace-cards-grid {
+        grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+    }
+}
+
+@media (max-width: 768px) {
+    .workspace-cards-grid {
+        grid-template-columns: 1fr;
+        gap: var(--spacing-4);
+        padding: var(--spacing-4);
+    }
+
+    .workspace-card-header,
+    .workspace-card-body,
+    .workspace-card-footer {
+        padding: var(--spacing-4);
+    }
+
+    .flags-list {
+        max-height: 250px;
+    }
+
+    .pagination-controls {
+        flex-direction: column;
+        align-items: stretch;
+        gap: var(--spacing-3);
+    }
+
+    .pagination-info {
+        text-align: center;
+    }
+
+    .pagination-buttons {
+        justify-content: center;
+    }
+}
+
+@media (max-width: 480px) {
+    .workspace-cards-grid {
+        padding: var(--spacing-3);
+    }
+
+    .workspace-card-title h3 {
+        font-size: var(--text-base);
+    }
+
+    .workspace-flags-section h4 {
+        font-size: var(--text-sm);
+    }
+
+    .flag-item {
+        padding: var(--spacing-2);
+    }
+
+    .flag-item-name {
+        font-size: var(--text-xs);
+    }
+
+    .pagination-buttons {
+        flex-direction: column;
+        width: 100%;
+    }
+
+    .pagination-buttons .btn {
+        width: 100%;
+    }
+
+    .pagination-page-info {
+        order: -1;
+    }
+}

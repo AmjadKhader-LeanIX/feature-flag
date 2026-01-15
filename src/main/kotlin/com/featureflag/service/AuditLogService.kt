@@ -107,6 +107,37 @@ class AuditLogService(
             .map { it.toDto() }
     }
 
+    fun logWorkspaceUpdate(
+        oldEnabledCount: Int,
+        newEnabledCount: Int,
+        oldRolloutPercentage: Int,
+        newRolloutPercentage: Int,
+        featureFlag: FeatureFlag,
+        changedBy: String? = "system"
+    ) {
+        val oldValues = mapOf(
+            "enabledWorkspaces" to oldEnabledCount,
+            "rolloutPercentage" to oldRolloutPercentage
+        )
+
+        val newValues = mapOf(
+            "enabledWorkspaces" to newEnabledCount,
+            "rolloutPercentage" to newRolloutPercentage
+        )
+
+        val auditLog = FeatureFlagAuditLog(
+            featureFlagId = featureFlag.id,
+            featureFlagName = featureFlag.name,
+            operation = AuditOperation.UPDATE,
+            team = featureFlag.team,
+            oldValues = objectMapper.writeValueAsString(oldValues),
+            newValues = objectMapper.writeValueAsString(newValues),
+            changedBy = changedBy
+        )
+
+        auditLogRepository.save(auditLog)
+    }
+
     private fun FeatureFlagAuditLog.toDto(): AuditLogDto {
         return AuditLogDto(
             id = this.id,

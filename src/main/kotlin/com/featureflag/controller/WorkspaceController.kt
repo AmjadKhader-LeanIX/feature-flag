@@ -26,4 +26,10 @@ class WorkspaceController(
         val workspace = workspaceService.getWorkspaceById(id)
         return ResponseEntity.ok(workspace)
     }
+
+    @GetMapping("/{id}/enabled-feature-flags")
+    fun getEnabledFeatureFlags(@PathVariable id: UUID): ResponseEntity<List<com.featureflag.dto.FeatureFlagDto>> {
+        val featureFlags = workspaceService.getEnabledFeatureFlagsForWorkspace(id)
+        return ResponseEntity.ok(featureFlags)
+    }
 }

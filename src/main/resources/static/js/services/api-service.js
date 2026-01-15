@@ -56,4 +56,25 @@ const apiService = {
     getAuditLogsByFeatureFlagId(featureFlagId) {
         return this.request(`/audit-logs/feature-flag/${featureFlagId}`);
     },
+
+    getWorkspaces() {
+        return this.request('/workspaces');
+    },
+
+    updateWorkspaceFeatureFlags(featureFlagId, data) {
+        return this.request(`/feature-flags/${featureFlagId}/workspaces`, {
+            method: 'PUT',
+            data
+        });
+    },
+
+    // Get all workspaces that have a feature flag enabled
+    getEnabledWorkspacesForFeatureFlag(featureFlagId) {
+        return this.request(`/feature-flags/${featureFlagId}/enabled-workspaces`);
+    },
+
+    // Get all enabled feature flags for a workspace
+    getEnabledFeatureFlagsForWorkspace(workspaceId) {
+        return this.request(`/workspaces/${workspaceId}/enabled-feature-flags`);
+    },
 };
