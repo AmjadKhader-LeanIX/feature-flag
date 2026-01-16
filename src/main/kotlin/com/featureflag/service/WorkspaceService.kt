@@ -1,10 +1,13 @@
 package com.featureflag.service
 
+import com.featureflag.dto.PageableResponse
 import com.featureflag.dto.WorkspaceDto
 import com.featureflag.entity.Workspace
 import com.featureflag.exception.ResourceNotFoundException
 import com.featureflag.repository.WorkspaceRepository
 import com.featureflag.repository.WorkspaceFeatureFlagRepository
+import org.springframework.data.domain.PageRequest
+import org.springframework.data.domain.Sort
 import org.springframework.stereotype.Service
 import java.util.*
 
@@ -18,6 +21,17 @@ class WorkspaceService(
         return workspaceRepository.findAll().map { it.toDto() }
     }
 
+    fun getAllWorkspacesPaginated(page: Int = 0, size: Int = 20, searchTerm: String? = null): PageableResponse<WorkspaceDto> {
+        val pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt"))
+        val workspacePage = if (searchTerm.isNullOrBlank()) {
+            workspaceRepository.findAll(pageable)
+        } else {
+            workspaceRepository.searchWorkspaces(searchTerm, pageable)
+        }
+        val dtoPage = workspacePage.map { it.toDto() }
+        return PageableResponse.of(dtoPage)
+    }
+
     fun getWorkspaceById(id: UUID): WorkspaceDto {
         val workspace = workspaceRepository.findById(id)
             .orElseThrow { ResourceNotFoundException("Workspace not found with id: $id") }
@@ -26,13 +40,14 @@ class WorkspaceService(
 
     /**
      * Get all feature flags that are enabled for this workspace
+     * Uses JOIN FETCH to avoid N+1 query problem
      */
     fun getEnabledFeatureFlagsForWorkspace(workspaceId: UUID): List<com.featureflag.dto.FeatureFlagDto> {
         val workspace = workspaceRepository.findById(workspaceId)
             .orElseThrow { ResourceNotFoundException("Workspace not found with id: $workspaceId") }
 
-        val enabledAssociations = workspaceFeatureFlagRepository.findByWorkspaceId(workspace.id!!)
-            .filter { it.isEnabled }
+        // Use optimized query with JOIN FETCH to load feature flags in single query
+        val enabledAssociations = workspaceFeatureFlagRepository.findEnabledByWorkspaceIdWithFeatureFlag(workspace.id!!)
 
         return enabledAssociations.map { it.featureFlag.toDto() }
     }

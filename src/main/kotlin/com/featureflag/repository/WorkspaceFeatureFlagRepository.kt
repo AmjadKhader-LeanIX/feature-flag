@@ -2,13 +2,32 @@ package com.featureflag.repository
 
 import com.featureflag.entity.FeatureFlag
 import com.featureflag.entity.WorkspaceFeatureFlag
+import org.springframework.data.domain.Page
+import org.springframework.data.domain.Pageable
 import org.springframework.data.jpa.repository.JpaRepository
+import org.springframework.data.jpa.repository.Query
+import org.springframework.data.repository.query.Param
 import org.springframework.stereotype.Repository
 import java.util.*
 
 @Repository
 interface WorkspaceFeatureFlagRepository : JpaRepository<WorkspaceFeatureFlag, UUID> {
     fun findByWorkspaceId(workspaceId: UUID): List<WorkspaceFeatureFlag>
+
+    @Query("SELECT wff FROM WorkspaceFeatureFlag wff JOIN FETCH wff.featureFlag JOIN FETCH wff.workspace w WHERE w.id = :workspaceId")
+    fun findByWorkspaceIdWithFeatureFlag(workspaceId: UUID): List<WorkspaceFeatureFlag>
+
+    @Query("SELECT wff FROM WorkspaceFeatureFlag wff JOIN FETCH wff.featureFlag JOIN FETCH wff.workspace w WHERE w.id = :workspaceId AND wff.isEnabled = true")
+    fun findEnabledByWorkspaceIdWithFeatureFlag(workspaceId: UUID): List<WorkspaceFeatureFlag>
+
     fun findByFeatureFlag(featureFlag: FeatureFlag): List<WorkspaceFeatureFlag>
     fun findByFeatureFlagIdAndWorkspaceIdIn(featureFlagId: UUID, workspaceIds: List<UUID>): List<WorkspaceFeatureFlag>
+
+    // Paginated query for enabled workspaces by feature flag
+    @Query("SELECT wff FROM WorkspaceFeatureFlag wff WHERE wff.featureFlag.id = :featureFlagId AND wff.isEnabled = true")
+    fun findEnabledByFeatureFlagId(@Param("featureFlagId") featureFlagId: UUID, pageable: Pageable): Page<WorkspaceFeatureFlag>
+
+    // Search enabled workspaces by feature flag with name or region filter
+    @Query("SELECT wff FROM WorkspaceFeatureFlag wff WHERE wff.featureFlag.id = :featureFlagId AND wff.isEnabled = true AND (LOWER(wff.workspace.name) LIKE LOWER(CONCAT('%', :searchTerm, '%')) OR LOWER(CAST(wff.workspace.region AS string)) LIKE LOWER(CONCAT('%', :searchTerm, '%')))")
+    fun searchEnabledByFeatureFlagId(@Param("featureFlagId") featureFlagId: UUID, @Param("searchTerm") searchTerm: String, pageable: Pageable): Page<WorkspaceFeatureFlag>
 }

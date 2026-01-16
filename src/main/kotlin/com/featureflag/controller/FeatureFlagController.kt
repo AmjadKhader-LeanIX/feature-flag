@@ -78,8 +78,20 @@ class FeatureFlagController(
     }
 
     @GetMapping("/{id}/enabled-workspaces")
-    fun getEnabledWorkspaces(@PathVariable id: UUID): ResponseEntity<List<com.featureflag.dto.WorkspaceDto>> {
-        val workspaces = featureFlagService.getEnabledWorkspacesForFeatureFlag(id)
-        return ResponseEntity.ok(workspaces)
+    fun getEnabledWorkspaces(
+        @PathVariable id: UUID,
+        @RequestParam(defaultValue = "0") page: Int,
+        @RequestParam(defaultValue = "100") size: Int,
+        @RequestParam(defaultValue = "false") paginated: Boolean,
+        @RequestParam(required = false) search: String?
+    ): ResponseEntity<*> {
+        return if (paginated) {
+            val paginatedWorkspaces = featureFlagService.getEnabledWorkspacesForFeatureFlagPaginated(id, page, size, search)
+            ResponseEntity.ok(paginatedWorkspaces)
+        } else {
+            // Backward compatibility
+            val workspaces = featureFlagService.getEnabledWorkspacesForFeatureFlag(id)
+            ResponseEntity.ok(workspaces)
+        }
     }
 }

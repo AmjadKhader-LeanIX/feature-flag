@@ -1,11 +1,13 @@
 package com.featureflag.controller
 
+import com.featureflag.dto.PageableResponse
 import com.featureflag.dto.WorkspaceDto
 import com.featureflag.service.WorkspaceService
 import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.PathVariable
 import org.springframework.web.bind.annotation.RequestMapping
+import org.springframework.web.bind.annotation.RequestParam
 import org.springframework.web.bind.annotation.RestController
 import java.util.*
 
@@ -16,9 +18,20 @@ class WorkspaceController(
 ) {
 
     @GetMapping
-    fun getAllWorkspaces(): ResponseEntity<List<WorkspaceDto>> {
-        val workspaces = workspaceService.getAllWorkspaces()
-        return ResponseEntity.ok(workspaces)
+    fun getAllWorkspaces(
+        @RequestParam(defaultValue = "0") page: Int,
+        @RequestParam(defaultValue = "20") size: Int,
+        @RequestParam(defaultValue = "false") paginated: Boolean,
+        @RequestParam(required = false) search: String?
+    ): ResponseEntity<*> {
+        return if (paginated) {
+            val paginatedWorkspaces = workspaceService.getAllWorkspacesPaginated(page, size, search)
+            ResponseEntity.ok(paginatedWorkspaces)
+        } else {
+            // Backward compatibility: return all workspaces when paginated=false
+            val workspaces = workspaceService.getAllWorkspaces()
+            ResponseEntity.ok(workspaces)
+        }
     }
 
     @GetMapping("/{id}")

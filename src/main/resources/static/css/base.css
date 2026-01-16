@@ -22,21 +22,21 @@ body {
     text-rendering: optimizeLegibility;
 }
 
-/* Improved Focus Styles */
+/* Improved Focus Styles - LeanIX Navy */
 *:focus-visible {
-    outline: 2px solid var(--primary-500);
+    outline: 2px solid #002a86;
     outline-offset: 2px;
     border-radius: var(--radius-sm);
 }
 
-/* Selection Styles */
+/* Selection Styles - Light Blue */
 ::selection {
-    background-color: var(--primary-200);
+    background-color: #ebf8ff;
     color: var(--text-primary);
 }
 
 ::-moz-selection {
-    background-color: var(--primary-200);
+    background-color: #ebf8ff;
     color: var(--text-primary);
 }
 
@@ -81,13 +81,13 @@ p {
 }
 
 a {
-    color: var(--text-link);
+    color: #002a86;
     text-decoration: none;
     transition: color var(--transition-fast);
 }
 
 a:hover {
-    color: var(--primary-700);
+    color: #1f5ba3;
 }
 
 code {
@@ -96,7 +96,7 @@ code {
     background: var(--gray-100);
     padding: 0.125rem 0.375rem;
     border-radius: var(--radius-xs);
-    color: var(--primary-700);
+    color: #002a86;
 }
 
 /* Vue Transitions - Enhanced */
@@ -263,16 +263,20 @@ code {
     }
 }
 
-/* Print Styles */
+/* Print Styles - LeanIX Navy Text */
 @media print {
     body {
         background: white;
-        color: black;
+        color: #223548;
     }
 
     .navbar,
     .btn,
     button {
         display: none !important;
+    }
+
+    a {
+        color: #002a86 !important;
     }
 }

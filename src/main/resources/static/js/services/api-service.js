@@ -57,8 +57,9 @@ const apiService = {
         return this.request(`/audit-logs/feature-flag/${featureFlagId}`);
     },
 
-    getWorkspaces() {
-        return this.request('/workspaces');
+    getWorkspaces(page = 0, size = 100, searchTerm = '') {
+        const search = searchTerm ? `&search=${encodeURIComponent(searchTerm)}` : '';
+        return this.request(`/workspaces?paginated=true&page=${page}&size=${size}${search}`);
     },
 
     updateWorkspaceFeatureFlags(featureFlagId, data) {
@@ -69,8 +70,9 @@ const apiService = {
     },
 
     // Get all workspaces that have a feature flag enabled
-    getEnabledWorkspacesForFeatureFlag(featureFlagId) {
-        return this.request(`/feature-flags/${featureFlagId}/enabled-workspaces`);
+    getEnabledWorkspacesForFeatureFlag(featureFlagId, page = 0, size = 100, searchTerm = '') {
+        const search = searchTerm ? `&search=${encodeURIComponent(searchTerm)}` : '';
+        return this.request(`/feature-flags/${featureFlagId}/enabled-workspaces?paginated=true&page=${page}&size=${size}${search}`);
     },
 
     // Get all enabled feature flags for a workspace

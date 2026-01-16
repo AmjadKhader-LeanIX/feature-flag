@@ -23,13 +23,24 @@ const App = {
         const enabledWorkspaces = ref([]);
         const workspaceFlags = ref([]);
         const workspaces = ref([]);
+
+        // Pagination state for enabled workspaces
+        const currentEnabledWorkspacesPage = ref(0);
+        const enabledWorkspacesPerPage = ref(100);
+        const hasMoreEnabledWorkspaces = ref(true);
+        const isLoadingMoreEnabledWorkspaces = ref(false);
+        const totalEnabledWorkspacesCount = ref(0);
         const workspacesWithFlags = ref([]); // Store workspaces with their enabled flags
         const selectedFeatureFlagForWorkspaces = ref(null);
         const selectedWorkspaceForFlags = ref(null);
         const selectedWorkspaceId = ref('');
         const workspaceSearchTerm = ref('');
-        const currentWorkspacePage = ref(1);
-        const workspacesPerPage = ref(9);
+        const enabledWorkspacesSearchTerm = ref('');
+        const currentWorkspacePage = ref(0); // Changed to 0-based for API
+        const workspacesPerPage = ref(100); // Load 100 at a time
+        const hasMoreWorkspaces = ref(true);
+        const isLoadingMoreWorkspaces = ref(false);
+        const totalWorkspacesCount = ref(0);
 
         const searchTerms = reactive({
             featureFlag: '',
@@ -111,28 +122,15 @@ const App = {
             return Array.from(regionsSet).sort();
         });
 
+        // No client-side filtering - all workspaces are already filtered by the server
         const filteredWorkspacesWithFlags = computed(() => {
-            if (!workspaceSearchTerm.value) {
-                return workspacesWithFlags.value;
-            }
-            return workspacesWithFlags.value.filter(item =>
-                item.workspace.name.toLowerCase().includes(workspaceSearchTerm.value.toLowerCase()) ||
-                item.workspace.region?.toLowerCase().includes(workspaceSearchTerm.value.toLowerCase())
-            );
+            return workspacesWithFlags.value;
         });
 
+        // No longer need pagination for display - show all loaded workspaces
         const paginatedWorkspacesWithFlags = computed(() => {
-            const start = (currentWorkspacePage.value - 1) * workspacesPerPage.value;
-            const end = start + workspacesPerPage.value;
-            return filteredWorkspacesWithFlags.value.slice(start, end);
+            return filteredWorkspacesWithFlags.value;
         });
-
-        const totalWorkspacePages = computed(() => {
-            return Math.ceil(filteredWorkspacesWithFlags.value.length / workspacesPerPage.value);
-        });
-
-        const hasWorkspacePreviousPage = computed(() => currentWorkspacePage.value > 1);
-        const hasWorkspaceNextPage = computed(() => currentWorkspacePage.value < totalWorkspacePages.value);
 
         const showToast = (message, type = 'info') => {
             toast.message = message;
@@ -186,14 +184,34 @@ const App = {
             }
         };
 
-        const loadWorkspaces = async () => {
-            try {
+        const loadWorkspaces = async (reset = true) => {
+            if (reset) {
                 loading.workspaces = true;
-                const allWorkspaces = await apiService.getWorkspaces();
+                currentWorkspacePage.value = 0;
+                workspacesWithFlags.value = [];
+                hasMoreWorkspaces.value = true;
+            } else {
+                if (!hasMoreWorkspaces.value || isLoadingMoreWorkspaces.value) {
+                    return;
+                }
+                isLoadingMoreWorkspaces.value = true;
+            }
 
-                // Load enabled feature flags for each workspace
+            try {
+                const response = await apiService.getWorkspaces(
+                    currentWorkspacePage.value,
+                    workspacesPerPage.value,
+                    workspaceSearchTerm.value
+                );
+
+                // Response contains: content, pageNumber, pageSize, totalElements, totalPages, isLast, hasNext
+                const newWorkspaces = response.content;
+                totalWorkspacesCount.value = response.totalElements;
+                hasMoreWorkspaces.value = response.hasNext;
+
+                // Load enabled feature flags for each workspace in this batch
                 const workspacesWithFlagsData = await Promise.all(
-                    allWorkspaces.map(async (workspace) => {
+                    newWorkspaces.map(async (workspace) => {
                         try {
                             const enabledFlags = await apiService.getEnabledFeatureFlagsForWorkspace(workspace.id);
                             return {
@@ -210,12 +228,17 @@ const App = {
                     })
                 );
 
-                workspacesWithFlags.value = workspacesWithFlagsData;
-                workspaces.value = allWorkspaces;
+                // Append to existing workspaces
+                workspacesWithFlags.value = [...workspacesWithFlags.value, ...workspacesWithFlagsData];
+                workspaces.value = [...workspaces.value, ...newWorkspaces];
+
+                // Increment page for next load
+                currentWorkspacePage.value++;
             } catch (error) {
                 showToast(error.message, 'error');
             } finally {
                 loading.workspaces = false;
+                isLoadingMoreWorkspaces.value = false;
             }
         };
 
@@ -235,16 +258,44 @@ const App = {
             }
         };
 
-        const viewEnabledWorkspaces = async (flag) => {
-            try {
+        const viewEnabledWorkspaces = async (flag, reset = true) => {
+            if (reset) {
                 loading.enabledWorkspaces = true;
                 selectedFeatureFlagForWorkspaces.value = flag;
-                enabledWorkspaces.value = await apiService.getEnabledWorkspacesForFeatureFlag(flag.id);
+                currentEnabledWorkspacesPage.value = 0;
+                enabledWorkspaces.value = [];
+                hasMoreEnabledWorkspaces.value = true;
                 currentTab.value = 'enabled-workspaces';
+            } else {
+                if (!hasMoreEnabledWorkspaces.value || isLoadingMoreEnabledWorkspaces.value) {
+                    return;
+                }
+                isLoadingMoreEnabledWorkspaces.value = true;
+            }
+
+            try {
+                const response = await apiService.getEnabledWorkspacesForFeatureFlag(
+                    selectedFeatureFlagForWorkspaces.value.id,
+                    currentEnabledWorkspacesPage.value,
+                    enabledWorkspacesPerPage.value,
+                    enabledWorkspacesSearchTerm.value
+                );
+
+                // Response contains paginated data
+                const newWorkspaces = response.content;
+                totalEnabledWorkspacesCount.value = response.totalElements;
+                hasMoreEnabledWorkspaces.value = response.hasNext;
+
+                // Append to existing workspaces
+                enabledWorkspaces.value = [...enabledWorkspaces.value, ...newWorkspaces];
+
+                // Increment page for next load
+                currentEnabledWorkspacesPage.value++;
             } catch (error) {
                 showToast(error.message, 'error');
             } finally {
                 loading.enabledWorkspaces = false;
+                isLoadingMoreEnabledWorkspaces.value = false;
             }
         };
 
@@ -378,25 +429,51 @@ const App = {
             }
         });
 
+        // Debounced search - reload workspaces when search term changes
+        let searchTimeout = null;
         watch(workspaceSearchTerm, () => {
-            currentWorkspacePage.value = 1;
+            if (searchTimeout) {
+                clearTimeout(searchTimeout);
+            }
+            searchTimeout = setTimeout(() => {
+                loadWorkspaces(true);
+            }, 500); // 500ms debounce
         });
 
-        const goToWorkspacePage = (page) => {
-            if (page >= 1 && page <= totalWorkspacePages.value) {
-                currentWorkspacePage.value = page;
+        // Debounced search for enabled workspaces
+        let enabledWorkspacesSearchTimeout = null;
+        watch(enabledWorkspacesSearchTerm, () => {
+            if (enabledWorkspacesSearchTimeout) {
+                clearTimeout(enabledWorkspacesSearchTimeout);
+            }
+            enabledWorkspacesSearchTimeout = setTimeout(() => {
+                if (selectedFeatureFlagForWorkspaces.value) {
+                    viewEnabledWorkspaces(selectedFeatureFlagForWorkspaces.value, true);
+                }
+            }, 500); // 500ms debounce
+        });
+
+        // Infinite scroll handler for workspaces
+        const handleWorkspaceScroll = (event) => {
+            const container = event.target;
+            const scrollPosition = container.scrollTop + container.clientHeight;
+            const scrollHeight = container.scrollHeight;
+
+            // Load more when user scrolls to 80% of the page
+            if (scrollPosition >= scrollHeight * 0.8 && hasMoreWorkspaces.value && !isLoadingMoreWorkspaces.value) {
+                loadWorkspaces(false);
             }
         };
 
-        const nextWorkspacePage = () => {
-            if (hasWorkspaceNextPage.value) {
-                currentWorkspacePage.value++;
-            }
-        };
+        // Infinite scroll handler for enabled workspaces
+        const handleEnabledWorkspacesScroll = (event) => {
+            const container = event.target;
+            const scrollPosition = container.scrollTop + container.clientHeight;
+            const scrollHeight = container.scrollHeight;
 
-        const previousWorkspacePage = () => {
-            if (hasWorkspacePreviousPage.value) {
-                currentWorkspacePage.value--;
+            // Load more when user scrolls to 80% of the page
+            if (scrollPosition >= scrollHeight * 0.8 && hasMoreEnabledWorkspaces.value && !isLoadingMoreEnabledWorkspaces.value) {
+                viewEnabledWorkspaces(selectedFeatureFlagForWorkspaces.value, false);
             }
         };
 
@@ -442,17 +519,18 @@ const App = {
             formatDate,
             formatJsonDiff,
             workspaceSearchTerm,
-            currentWorkspacePage,
-            workspacesPerPage,
             filteredWorkspacesWithFlags,
             paginatedWorkspacesWithFlags,
-            totalWorkspacePages,
-            hasWorkspacePreviousPage,
-            hasWorkspaceNextPage,
-            goToWorkspacePage,
-            nextWorkspacePage,
-            previousWorkspacePage,
-            workspacesWithFlags
+            workspacesWithFlags,
+            hasMoreWorkspaces,
+            isLoadingMoreWorkspaces,
+            totalWorkspacesCount,
+            handleWorkspaceScroll,
+            hasMoreEnabledWorkspaces,
+            isLoadingMoreEnabledWorkspaces,
+            totalEnabledWorkspacesCount,
+            handleEnabledWorkspacesScroll,
+            enabledWorkspacesSearchTerm
         };
     },
 
@@ -755,7 +833,7 @@ const App = {
                             </div>
                         </div>
 
-                        <div class="content-section">
+                        <div class="content-section" @scroll="handleWorkspaceScroll" style="max-height: calc(100vh - 250px); overflow-y: auto;">
                             <div class="search-bar">
                                 <i class="fas fa-search"></i>
                                 <input
@@ -765,11 +843,18 @@ const App = {
                                 />
                             </div>
 
-                            <div v-if="loading.workspaces" class="loading">Loading workspaces...</div>
+                            <div v-if="loading.workspaces && workspacesWithFlags.length === 0" class="loading">Loading workspaces...</div>
                             <div v-else-if="filteredWorkspacesWithFlags.length === 0" class="loading">
                                 No workspaces found
                             </div>
                             <div v-else>
+                                <div class="workspace-info-header" style="padding: 12px; background: var(--bg-secondary); border-radius: 8px; margin-bottom: 16px;">
+                                    <p style="margin: 0; color: var(--text-secondary);">
+                                        <i class="fas fa-info-circle"></i>
+                                        Showing {{ filteredWorkspacesWithFlags.length }} of {{ totalWorkspacesCount }} workspaces
+                                        <span v-if="hasMoreWorkspaces"> - Scroll down to load more</span>
+                                    </p>
+                                </div>
                                 <div class="workspace-cards-grid">
                                     <div v-for="item in paginatedWorkspacesWithFlags" :key="item.workspace.id" class="workspace-card">
                                         <div class="workspace-card-header">
@@ -838,35 +923,13 @@ const App = {
                                     </div>
                                 </div>
 
-                                <div v-if="totalWorkspacePages > 1" class="pagination-controls">
-                                    <div class="pagination-info">
-                                        Showing {{ ((currentWorkspacePage - 1) * workspacesPerPage) + 1 }} -
-                                        {{ Math.min(currentWorkspacePage * workspacesPerPage, filteredWorkspacesWithFlags.length) }}
-                                        of {{ filteredWorkspacesWithFlags.length }} workspaces
-                                    </div>
-                                    <div class="pagination-buttons">
-                                        <button
-                                            type="button"
-                                            class="btn btn-sm btn-secondary"
-                                            @click="previousWorkspacePage"
-                                            :disabled="!hasWorkspacePreviousPage"
-                                        >
-                                            <i class="fas fa-chevron-left"></i>
-                                            Previous
-                                        </button>
-                                        <span class="pagination-page-info">
-                                            Page {{ currentWorkspacePage }} of {{ totalWorkspacePages }}
-                                        </span>
-                                        <button
-                                            type="button"
-                                            class="btn btn-sm btn-secondary"
-                                            @click="nextWorkspacePage"
-                                            :disabled="!hasWorkspaceNextPage"
-                                        >
-                                            Next
-                                            <i class="fas fa-chevron-right"></i>
-                                        </button>
-                                    </div>
+                                <div v-if="isLoadingMoreWorkspaces" class="loading-more" style="text-align: center; padding: 24px;">
+                                    <div class="loading-spinner" style="display: inline-block; width: 30px; height: 30px; border: 3px solid var(--gray-200); border-top: 3px solid var(--primary-500); border-radius: 50%; animation: spin 1s linear infinite;"></div>
+                                    <p style="margin-top: 12px; color: var(--text-secondary);">Loading more workspaces...</p>
+                                </div>
+
+                                <div v-if="!hasMoreWorkspaces && filteredWorkspacesWithFlags.length > 0" style="text-align: center; padding: 24px; color: var(--text-secondary);">
+                                    <i class="fas fa-check-circle"></i> All workspaces loaded
                                 </div>
                             </div>
                         </div>
@@ -890,35 +953,64 @@ const App = {
                             </div>
                         </div>
 
-                        <div class="content-section">
-                            <div v-if="loading.enabledWorkspaces" class="loading">Loading workspaces...</div>
-                            <div v-else-if="enabledWorkspaces.length === 0" class="loading">
-                                No workspaces have this feature flag enabled
+                        <div class="content-section" @scroll="handleEnabledWorkspacesScroll" style="max-height: calc(100vh - 250px); overflow-y: auto;">
+                            <div class="search-bar">
+                                <i class="fas fa-search"></i>
+                                <input
+                                    type="text"
+                                    v-model="enabledWorkspacesSearchTerm"
+                                    placeholder="Search enabled workspaces by name or region..."
+                                />
                             </div>
-                            <div v-else class="data-grid">
-                                <div v-for="workspace in enabledWorkspaces" :key="workspace.id" class="grid-item">
-                                    <div class="grid-content">
-                                        <div class="grid-title">
-                                            <i class="fas fa-building"></i>
-                                            {{ workspace.name }}
+
+                            <div v-if="loading.enabledWorkspaces && enabledWorkspaces.length === 0" class="loading">Loading workspaces...</div>
+                            <div v-else-if="enabledWorkspaces.length === 0" class="loading">
+                                <span v-if="enabledWorkspacesSearchTerm">No workspaces found matching "{{ enabledWorkspacesSearchTerm }}"</span>
+                                <span v-else>No workspaces have this feature flag enabled</span>
+                            </div>
+                            <div v-else>
+                                <div class="workspace-info-header" style="padding: 12px; background: var(--bg-secondary); border-radius: 8px; margin-bottom: 16px;">
+                                    <p style="margin: 0; color: var(--text-secondary);">
+                                        <i class="fas fa-info-circle"></i>
+                                        Showing {{ enabledWorkspaces.length }} of {{ totalEnabledWorkspacesCount }} enabled workspaces
+                                        <span v-if="enabledWorkspacesSearchTerm"> matching "{{ enabledWorkspacesSearchTerm }}"</span>
+                                        <span v-if="hasMoreEnabledWorkspaces"> - Scroll down to load more</span>
+                                    </p>
+                                </div>
+                                <div class="data-grid">
+                                    <div v-for="workspace in enabledWorkspaces" :key="workspace.id" class="grid-item">
+                                        <div class="grid-content">
+                                            <div class="grid-title">
+                                                <i class="fas fa-building"></i>
+                                                {{ workspace.name }}
+                                            </div>
+                                            <div class="grid-meta">
+                                                <span v-if="workspace.type" class="badge badge-secondary">{{ workspace.type }}</span>
+                                                <span v-if="workspace.region" class="badge badge-warning">
+                                                    <i class="fas fa-globe"></i>
+                                                    {{ workspace.region }}
+                                                </span>
+                                            </div>
+                                            <div class="grid-meta" style="font-size: var(--text-sm); color: var(--text-secondary);">
+                                                Created: {{ formatDate(workspace.createdAt) }}
+                                            </div>
                                         </div>
-                                        <div class="grid-meta">
-                                            <span v-if="workspace.type" class="badge badge-secondary">{{ workspace.type }}</span>
-                                            <span v-if="workspace.region" class="badge badge-warning">
-                                                <i class="fas fa-globe"></i>
-                                                {{ workspace.region }}
-                                            </span>
-                                        </div>
-                                        <div class="grid-meta" style="font-size: var(--text-sm); color: var(--text-secondary);">
-                                            Created: {{ formatDate(workspace.createdAt) }}
+                                        <div class="grid-actions">
+                                            <button class="btn btn-sm btn-info" @click="viewWorkspaceFlags(workspace)" title="View all enabled flags for this workspace">
+                                                <i class="fas fa-flag"></i>
+                                                View Enabled Flags
+                                            </button>
                                         </div>
                                     </div>
-                                    <div class="grid-actions">
-                                        <button class="btn btn-sm btn-info" @click="viewWorkspaceFlags(workspace)" title="View all enabled flags for this workspace">
-                                            <i class="fas fa-flag"></i>
-                                            View Enabled Flags
-                                        </button>
-                                    </div>
+                                </div>
+
+                                <div v-if="isLoadingMoreEnabledWorkspaces" class="loading-more" style="text-align: center; padding: 24px;">
+                                    <div class="loading-spinner" style="display: inline-block; width: 30px; height: 30px; border: 3px solid var(--gray-200); border-top: 3px solid var(--primary-500); border-radius: 50%; animation: spin 1s linear infinite;"></div>
+                                    <p style="margin-top: 12px; color: var(--text-secondary);">Loading more workspaces...</p>
+                                </div>
+
+                                <div v-if="!hasMoreEnabledWorkspaces && enabledWorkspaces.length > 0" style="text-align: center; padding: 24px; color: var(--text-secondary);">
+                                    <i class="fas fa-check-circle"></i> All enabled workspaces loaded
                                 </div>
                             </div>
                         </div>
@@ -935,9 +1027,9 @@ const App = {
                                 </p>
                             </div>
                             <div class="page-actions">
-                                <button class="btn btn-secondary" @click="currentTab = 'enabled-workspaces'">
+                                <button class="btn btn-secondary" @click="switchTab('workspaces')">
                                     <i class="fas fa-arrow-left"></i>
-                                    Back
+                                    Back to Workspaces
                                 </button>
                             </div>
                         </div>

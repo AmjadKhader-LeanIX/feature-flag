@@ -339,6 +339,24 @@ class FeatureFlagService(
         return enabledAssociations.map { it.workspace.toDto() }
     }
 
+    /**
+     * Get paginated workspaces that have this feature flag enabled
+     */
+    fun getEnabledWorkspacesForFeatureFlagPaginated(featureFlagId: UUID, page: Int = 0, size: Int = 100, searchTerm: String? = null): com.featureflag.dto.PageableResponse<com.featureflag.dto.WorkspaceDto> {
+        val featureFlag = featureFlagRepository.findById(featureFlagId)
+            .orElseThrow { ResourceNotFoundException("Feature flag not found with id: $featureFlagId") }
+
+        val pageable = org.springframework.data.domain.PageRequest.of(page, size, org.springframework.data.domain.Sort.by(org.springframework.data.domain.Sort.Direction.ASC, "workspace.name"))
+        val workspaceFlagPage = if (searchTerm.isNullOrBlank()) {
+            workspaceFeatureFlagRepository.findEnabledByFeatureFlagId(featureFlagId, pageable)
+        } else {
+            workspaceFeatureFlagRepository.searchEnabledByFeatureFlagId(featureFlagId, searchTerm, pageable)
+        }
+        val workspaceDtoPage = workspaceFlagPage.map { it.workspace.toDto() }
+
+        return com.featureflag.dto.PageableResponse.of(workspaceDtoPage)
+    }
+
     private fun FeatureFlag.toDto(): FeatureFlagDto {
         return FeatureFlagDto(
             id = this.id,
