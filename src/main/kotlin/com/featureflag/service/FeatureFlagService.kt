@@ -201,13 +201,30 @@ class FeatureFlagService(
         val updatedFeatureFlag = featureFlagRepository.findById(featureFlagId)
             .orElseThrow { ResourceNotFoundException("Feature flag not found with id: $featureFlagId") }
 
+        // Get workspace names for audit log
+        val pinnedWorkspaceNames = if (request.workspaceIds.isNotEmpty()) {
+            workspaceRepository.findAllById(request.workspaceIds).map { it.name }
+        } else {
+            emptyList()
+        }
+
+        val excludedWorkspaceNames = if (request.excludedWorkspaceIds.isNotEmpty()) {
+            workspaceRepository.findAllById(request.excludedWorkspaceIds).map { it.name }
+        } else {
+            emptyList()
+        }
+
         // Log the workspace update with old and new enabled counts
         auditLogService.logWorkspaceUpdate(
+            featureFlagId = featureFlagId,
             oldEnabledCount = oldEnabledCount,
             newEnabledCount = newEnabledCount,
             oldRolloutPercentage = oldRolloutPercentage,
             newRolloutPercentage = newRolloutPercentage,
-            featureFlag = updatedFeatureFlag
+            featureFlag = updatedFeatureFlag,
+            newPinnedWorkspaces = pinnedWorkspaceNames,
+            newExcludedWorkspaces = excludedWorkspaceNames,
+            targetRegion = request.targetRegion?.name
         )
     }
 
