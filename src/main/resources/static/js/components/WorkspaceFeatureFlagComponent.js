@@ -11,95 +11,121 @@ const WorkspaceFeatureFlagComponent = {
     },
 
     setup(props, { emit }) {
-        const workspaces = ref([]);
-        const loadingWorkspaces = ref(false);
-        const selectedWorkspaceIds = ref([]);
         const searchTerm = ref('');
+        const searchResults = ref([]);
+        const loadingSearch = ref(false);
+        const pickedWorkspaces = ref([]);
+        const excludedWorkspaces = ref([]);
         const rolloutPercentage = ref(0);
         const initialRolloutPercentage = ref(0);
+        const selectedRegion = ref(null);
+        const showDropdown = ref(false);
 
-        // Pagination state - using 0-based for API
-        const currentPage = ref(0);
-        const pageSize = ref(20);
-        const totalElements = ref(0);
-        const totalPages = ref(0);
-
-        const selectedCount = computed(() => selectedWorkspaceIds.value.length);
+        const excludeSearchTerm = ref('');
+        const excludeSearchResults = ref([]);
+        const loadingExcludeSearch = ref(false);
+        const showExcludeDropdown = ref(false);
 
         const hasRolloutChanged = computed(() => rolloutPercentage.value !== initialRolloutPercentage.value);
+        const pickedCount = computed(() => pickedWorkspaces.value.length);
+        const excludedCount = computed(() => excludedWorkspaces.value.length);
 
-        const hasPreviousPage = computed(() => currentPage.value > 0);
-        const hasNextPage = computed(() => currentPage.value < totalPages.value - 1);
+        // Search for workspaces
+        const searchWorkspaces = async () => {
+            if (!searchTerm.value || searchTerm.value.length < 2) {
+                searchResults.value = [];
+                showDropdown.value = false;
+                return;
+            }
 
-        const loadWorkspaces = async (resetPage = false) => {
             try {
-                loadingWorkspaces.value = true;
-
-                if (resetPage) {
-                    currentPage.value = 0;
-                }
-
-                // Use server-side search and pagination
-                const response = await apiService.getWorkspaces(
-                    currentPage.value,
-                    pageSize.value,
-                    searchTerm.value
-                );
-
-                workspaces.value = response.content || [];
-                totalElements.value = response.totalElements || 0;
-                totalPages.value = response.totalPages || 0;
+                loadingSearch.value = true;
+                const response = await apiService.getWorkspaces(0, 20, searchTerm.value);
+                searchResults.value = response.content || [];
+                showDropdown.value = searchResults.value.length > 0;
             } catch (error) {
-                console.error('Failed to load workspaces:', error);
-                workspaces.value = [];
-                totalElements.value = 0;
-                totalPages.value = 0;
+                console.error('Failed to search workspaces:', error);
+                searchResults.value = [];
+                showDropdown.value = false;
             } finally {
-                loadingWorkspaces.value = false;
+                loadingSearch.value = false;
             }
         };
 
-        const loadEnabledWorkspaces = async () => {
+        // Pick a workspace from search results
+        const pickWorkspace = (workspace) => {
+            // Check if already picked
+            const alreadyPicked = pickedWorkspaces.value.some(w => w.id === workspace.id);
+            if (!alreadyPicked) {
+                pickedWorkspaces.value.push(workspace);
+            }
+            // Clear search
+            searchTerm.value = '';
+            searchResults.value = [];
+            showDropdown.value = false;
+        };
+
+        // Remove a picked workspace
+        const removePickedWorkspace = (workspaceId) => {
+            pickedWorkspaces.value = pickedWorkspaces.value.filter(w => w.id !== workspaceId);
+        };
+
+        // Search for workspaces to exclude
+        const searchExcludeWorkspaces = async () => {
+            if (!excludeSearchTerm.value || excludeSearchTerm.value.length < 2) {
+                excludeSearchResults.value = [];
+                showExcludeDropdown.value = false;
+                return;
+            }
+
             try {
-                // Fetch all enabled workspaces for this feature flag
-                const response = await apiService.getEnabledWorkspacesForFeatureFlag(props.featureFlag.id, 0, 10000);
-                const enabledWorkspaces = response.content || [];
-
-                // Pre-select the workspaces that have this flag enabled
-                selectedWorkspaceIds.value = enabledWorkspaces.map(ws => ws.id);
+                loadingExcludeSearch.value = true;
+                const response = await apiService.getWorkspaces(0, 20, excludeSearchTerm.value);
+                excludeSearchResults.value = response.content || [];
+                showExcludeDropdown.value = excludeSearchResults.value.length > 0;
             } catch (error) {
-                console.error('Failed to load enabled workspaces:', error);
-                selectedWorkspaceIds.value = [];
+                console.error('Failed to search workspaces:', error);
+                excludeSearchResults.value = [];
+                showExcludeDropdown.value = false;
+            } finally {
+                loadingExcludeSearch.value = false;
             }
         };
 
-        const toggleWorkspace = (workspaceId) => {
-            const index = selectedWorkspaceIds.value.indexOf(workspaceId);
-            if (index > -1) {
-                selectedWorkspaceIds.value.splice(index, 1);
-            } else {
-                selectedWorkspaceIds.value.push(workspaceId);
+        // Pick a workspace to exclude
+        const excludeWorkspace = (workspace) => {
+            // Check if already excluded
+            const alreadyExcluded = excludedWorkspaces.value.some(w => w.id === workspace.id);
+            if (!alreadyExcluded) {
+                excludedWorkspaces.value.push(workspace);
             }
+            // Clear search
+            excludeSearchTerm.value = '';
+            excludeSearchResults.value = [];
+            showExcludeDropdown.value = false;
         };
 
-        const selectAll = () => {
-            selectedWorkspaceIds.value = workspaces.value.map(w => w.id);
+        // Remove an excluded workspace
+        const removeExcludedWorkspace = (workspaceId) => {
+            excludedWorkspaces.value = excludedWorkspaces.value.filter(w => w.id !== workspaceId);
         };
 
-        const deselectAll = () => {
-            selectedWorkspaceIds.value = [];
-        };
+        // Don't auto-load enabled workspaces
+        // Users should manually search and pick only the workspaces they want to prioritize
+        // This allows percentage-based rollout to work correctly when decreasing percentage
 
         const handleSubmit = () => {
-            if (selectedWorkspaceIds.value.length === 0 && !hasRolloutChanged.value) {
-                alert('Please select at least one workspace or change the rollout percentage');
+            if (!hasRolloutChanged.value && pickedWorkspaces.value.length === 0 && excludedWorkspaces.value.length === 0) {
+                alert('Please change the rollout percentage, pick workspaces to prioritize, or exclude workspaces');
                 return;
             }
 
             emit('submit', {
-                workspaceIds: selectedWorkspaceIds.value,
-                enabled: true, // Always enable for selected workspaces
-                rolloutPercentage: rolloutPercentage.value
+                workspaceIds: pickedWorkspaces.value.map(w => w.id),
+                excludedWorkspaceIds: excludedWorkspaces.value.map(w => w.id),
+                enabled: true,
+                rolloutPercentage: rolloutPercentage.value,
+                targetRegion: selectedRegion.value
             });
         };
 
@@ -107,48 +133,33 @@ const WorkspaceFeatureFlagComponent = {
             emit('cancel');
         };
 
-        const goToPage = (page) => {
-            if (page >= 0 && page < totalPages.value) {
-                currentPage.value = page;
-                loadWorkspaces();
-            }
-        };
-
-        const nextPage = () => {
-            if (hasNextPage.value) {
-                currentPage.value++;
-                loadWorkspaces();
-            }
-        };
-
-        const previousPage = () => {
-            if (hasPreviousPage.value) {
-                currentPage.value--;
-                loadWorkspaces();
-            }
-        };
-
-        // Debounced search - reload workspaces when search term changes
+        // Debounced search for pin
         let searchTimeout = null;
         watch(searchTerm, () => {
             if (searchTimeout) {
                 clearTimeout(searchTimeout);
             }
             searchTimeout = setTimeout(() => {
-                loadWorkspaces(true); // Reset to page 0 when searching
-            }, 500); // 500ms debounce
+                searchWorkspaces();
+            }, 300);
         });
 
-        // Load workspaces when component is mounted (lazy loading when modal opens)
+        // Debounced search for exclude
+        let excludeSearchTimeout = null;
+        watch(excludeSearchTerm, () => {
+            if (excludeSearchTimeout) {
+                clearTimeout(excludeSearchTimeout);
+            }
+            excludeSearchTimeout = setTimeout(() => {
+                searchExcludeWorkspaces();
+            }, 300);
+        });
+
+        // Initialize component on mount
         onMounted(async () => {
             rolloutPercentage.value = props.featureFlag.rolloutPercentage || 0;
             initialRolloutPercentage.value = props.featureFlag.rolloutPercentage || 0;
-
-            // Load enabled workspaces first to pre-select them
-            await loadEnabledWorkspaces();
-
-            // Then load the first page of workspaces
-            await loadWorkspaces();
+            // Start with empty picked list - users manually search and pick workspaces they want to prioritize
         });
 
         // Watch for feature flag changes
@@ -159,28 +170,34 @@ const WorkspaceFeatureFlagComponent = {
             }
         });
 
+        // Close dropdown when clicking outside
+        const closeDropdown = () => {
+            showDropdown.value = false;
+        };
+
         return {
-            workspaces,
-            loadingWorkspaces,
-            selectedWorkspaceIds,
             searchTerm,
+            searchResults,
+            loadingSearch,
+            pickedWorkspaces,
+            excludedWorkspaces,
+            excludeSearchTerm,
+            excludeSearchResults,
+            loadingExcludeSearch,
+            showExcludeDropdown,
             rolloutPercentage,
-            selectedCount,
+            selectedRegion,
+            showDropdown,
             hasRolloutChanged,
-            currentPage,
-            totalPages,
-            totalElements,
-            pageSize,
-            hasPreviousPage,
-            hasNextPage,
-            toggleWorkspace,
-            selectAll,
-            deselectAll,
+            pickedCount,
+            excludedCount,
+            pickWorkspace,
+            removePickedWorkspace,
+            excludeWorkspace,
+            removeExcludedWorkspace,
             handleSubmit,
             handleCancel,
-            goToPage,
-            nextPage,
-            previousPage
+            closeDropdown
         };
     },
 
@@ -210,53 +227,49 @@ const WorkspaceFeatureFlagComponent = {
                     />
                     <span class="rollout-display">{{ rolloutPercentage }}%</span>
                 </div>
-                <small style="color: var(--text-secondary); font-size: var(--text-xs); margin-top: var(--spacing-2); display: block;">
-                    Adjust the rollout percentage to control how many workspaces will have this flag enabled
-                </small>
             </div>
 
             <div class="form-section">
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
-                    <label class="form-label" style="margin-bottom: 0;">Select Workspaces ({{ selectedCount }} selected)</label>
-                    <div style="display: flex; gap: 8px;">
-                        <button type="button" class="btn btn-sm btn-secondary" @click="selectAll" :disabled="workspaces.length === 0">
-                            Select All on Page
-                        </button>
-                        <button type="button" class="btn btn-sm btn-secondary" @click="deselectAll" :disabled="selectedCount === 0">
-                            Deselect All
-                        </button>
+                <label class="form-label" for="region-selector">Target Region (Optional)</label>
+                <select id="region-selector" v-model="selectedRegion" class="form-select" :disabled="loading">
+                    <option :value="null">All Regions (apply percentage globally)</option>
+                    <option value="WESTEUROPE">West Europe</option>
+                    <option value="EASTUS">East US</option>
+                    <option value="CANADACENTRAL">Canada Central</option>
+                    <option value="AUSTRALIAEAST">Australia East</option>
+                    <option value="GERMANYWESTCENTRAL">Germany West Central</option>
+                    <option value="SWITZERLANDNORTH">Switzerland North</option>
+                    <option value="UAENORTH">UAE North</option>
+                    <option value="UKSOUTH">UK South</option>
+                    <option value="BRAZILSOUTH">Brazil South</option>
+                    <option value="SOUTHEASTASIA">Southeast Asia</option>
+                    <option value="JAPANEAST">Japan East</option>
+                    <option value="NORTHEUROPE">North Europe</option>
+                </select>
+            </div>
+
+            <div class="form-section">
+                <label class="form-label" for="workspace-search">Search and Pick Workspaces</label>
+                <div style="position: relative;">
+                    <div class="search-bar">
+                        <i class="fas fa-search"></i>
+                        <input
+                            id="workspace-search"
+                            type="text"
+                            v-model="searchTerm"
+                            placeholder="Search for workspaces to pick..."
+                            @focus="searchWorkspaces"
+                        />
+                        <i v-if="loadingSearch" class="fas fa-spinner fa-spin" style="position: absolute; right: 12px;"></i>
                     </div>
-                </div>
 
-                <div class="search-bar" style="margin-bottom: 12px;">
-                    <i class="fas fa-search"></i>
-                    <input
-                        type="text"
-                        v-model="searchTerm"
-                        placeholder="Search workspaces..."
-                    />
-                </div>
-
-                <div v-if="loadingWorkspaces" class="loading" style="padding: 20px;">
-                    Loading workspaces...
-                </div>
-                <div v-else-if="workspaces.length === 0" class="loading" style="padding: 20px;">
-                    No workspaces match your search
-                </div>
-                <div v-else>
-                    <div class="workspace-list">
-                        <label
-                            v-for="workspace in workspaces"
+                    <div v-if="showDropdown" class="search-dropdown" @click.stop>
+                        <div
+                            v-for="workspace in searchResults"
                             :key="workspace.id"
-                            class="workspace-item"
-                            :class="{ selected: selectedWorkspaceIds.includes(workspace.id) }"
+                            class="search-result-item"
+                            @click="pickWorkspace(workspace)"
                         >
-                            <input
-                                type="checkbox"
-                                :value="workspace.id"
-                                :checked="selectedWorkspaceIds.includes(workspace.id)"
-                                @change="toggleWorkspace(workspace.id)"
-                            />
                             <div class="workspace-info">
                                 <div class="workspace-name">
                                     <i class="fas fa-building"></i>
@@ -270,36 +283,119 @@ const WorkspaceFeatureFlagComponent = {
                                     </span>
                                 </div>
                             </div>
-                        </label>
+                        </div>
+                        <div v-if="searchResults.length === 0 && !loadingSearch" class="search-result-item" style="color: var(--text-secondary); font-style: italic;">
+                            No workspaces found
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div v-if="pickedWorkspaces.length > 0" class="form-section">
+                <label class="form-label">Picked Workspaces ({{ pickedCount }})</label>
+                <div class="picked-workspaces-list">
+                    <div
+                        v-for="workspace in pickedWorkspaces"
+                        :key="workspace.id"
+                        class="picked-workspace-item"
+                    >
+                        <div class="workspace-info">
+                            <div class="workspace-name">
+                                <i class="fas fa-building"></i>
+                                {{ workspace.name }}
+                            </div>
+                            <div class="workspace-meta">
+                                <span v-if="workspace.type" class="badge badge-secondary">{{ workspace.type }}</span>
+                                <span v-if="workspace.region" class="badge badge-warning">
+                                    <i class="fas fa-globe"></i>
+                                    {{ workspace.region }}
+                                </span>
+                            </div>
+                        </div>
+                        <button
+                            type="button"
+                            class="btn-remove"
+                            @click="removePickedWorkspace(workspace.id)"
+                            title="Remove workspace"
+                        >
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="form-section">
+                <label class="form-label" for="exclude-workspace-search">Exclude Workspaces (Always Disabled)</label>
+                <div style="position: relative;">
+                    <div class="search-bar">
+                        <i class="fas fa-search"></i>
+                        <input
+                            id="exclude-workspace-search"
+                            type="text"
+                            v-model="excludeSearchTerm"
+                            placeholder="Search for workspaces to exclude..."
+                            @focus="searchExcludeWorkspaces"
+                        />
+                        <i v-if="loadingExcludeSearch" class="fas fa-spinner fa-spin" style="position: absolute; right: 12px;"></i>
                     </div>
 
-                    <div v-if="totalPages > 1" class="pagination-controls" style="display: flex; justify-content: space-between; align-items: center; padding: 12px; border-top: 1px solid var(--border-color); margin-top: 12px;">
-                        <div style="color: var(--text-secondary); font-size: var(--text-sm);">
-                            Showing {{ (currentPage * pageSize) + 1 }} - {{ Math.min((currentPage + 1) * pageSize, totalElements) }} of {{ totalElements }} workspaces
+                    <div v-if="showExcludeDropdown" class="search-dropdown" @click.stop>
+                        <div
+                            v-for="workspace in excludeSearchResults"
+                            :key="workspace.id"
+                            class="search-result-item"
+                            @click="excludeWorkspace(workspace)"
+                        >
+                            <div class="workspace-info">
+                                <div class="workspace-name">
+                                    <i class="fas fa-building"></i>
+                                    {{ workspace.name }}
+                                </div>
+                                <div class="workspace-meta">
+                                    <span v-if="workspace.type" class="badge badge-secondary">{{ workspace.type }}</span>
+                                    <span v-if="workspace.region" class="badge badge-warning">
+                                        <i class="fas fa-globe"></i>
+                                        {{ workspace.region }}
+                                    </span>
+                                </div>
+                            </div>
                         </div>
-                        <div style="display: flex; gap: 8px; align-items: center;">
-                            <button
-                                type="button"
-                                class="btn btn-sm btn-secondary"
-                                @click="previousPage"
-                                :disabled="!hasPreviousPage"
-                            >
-                                <i class="fas fa-chevron-left"></i>
-                                Previous
-                            </button>
-                            <span style="color: var(--text-secondary); font-size: var(--text-sm); padding: 0 12px;">
-                                Page {{ currentPage + 1 }} of {{ totalPages }}
-                            </span>
-                            <button
-                                type="button"
-                                class="btn btn-sm btn-secondary"
-                                @click="nextPage"
-                                :disabled="!hasNextPage"
-                            >
-                                Next
-                                <i class="fas fa-chevron-right"></i>
-                            </button>
+                        <div v-if="excludeSearchResults.length === 0 && !loadingExcludeSearch" class="search-result-item" style="color: var(--text-secondary); font-style: italic;">
+                            No workspaces found
                         </div>
+                    </div>
+                </div>
+            </div>
+
+            <div v-if="excludedWorkspaces.length > 0" class="form-section">
+                <label class="form-label">Excluded Workspaces ({{ excludedCount }})</label>
+                <div class="excluded-workspaces-list">
+                    <div
+                        v-for="workspace in excludedWorkspaces"
+                        :key="workspace.id"
+                        class="excluded-workspace-item"
+                    >
+                        <div class="workspace-info">
+                            <div class="workspace-name">
+                                <i class="fas fa-building"></i>
+                                {{ workspace.name }}
+                            </div>
+                            <div class="workspace-meta">
+                                <span v-if="workspace.type" class="badge badge-secondary">{{ workspace.type }}</span>
+                                <span v-if="workspace.region" class="badge badge-warning">
+                                    <i class="fas fa-globe"></i>
+                                    {{ workspace.region }}
+                                </span>
+                            </div>
+                        </div>
+                        <button
+                            type="button"
+                            class="btn-remove"
+                            @click="removeExcludedWorkspace(workspace.id)"
+                            title="Remove from exclusion"
+                        >
+                            <i class="fas fa-times"></i>
+                        </button>
                     </div>
                 </div>
             </div>
@@ -308,9 +404,14 @@ const WorkspaceFeatureFlagComponent = {
                 <button type="button" class="btn btn-secondary" @click="handleCancel" :disabled="loading">
                     Cancel
                 </button>
-                <button type="button" class="btn btn-primary" @click="handleSubmit" :disabled="loading || (selectedCount === 0 && !hasRolloutChanged)">
-                    <i class="fas fa-save"></i>
-                    {{ loading ? 'Saving...' : 'Save' }}
+                <button type="button" class="btn btn-primary" @click="handleSubmit" :disabled="loading">
+                    <span v-if="loading">
+                        <i class="fas fa-spinner fa-spin"></i>
+                        Updating...
+                    </span>
+                    <span v-else>
+                        Update Feature Flag
+                    </span>
                 </button>
             </div>
         </div>
