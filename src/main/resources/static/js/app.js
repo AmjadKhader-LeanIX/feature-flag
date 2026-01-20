@@ -5,7 +5,9 @@ const App = {
         ToastComponent,
         ModalComponent,
         FeatureFlagFormComponent,
-        WorkspaceFeatureFlagComponent
+        WorkspaceFeatureFlagComponent,
+        SkeletonLoader,
+        DataVisualizationCharts
     },
 
     setup() {
@@ -176,9 +178,12 @@ const App = {
                 const params = {};
                 if (filters.auditFlagId) params.featureFlagId = filters.auditFlagId;
                 if (filters.auditOperation) params.operation = filters.auditOperation;
+                console.log('Loading audit logs with params:', params);
                 auditLogs.value = await apiService.getAuditLogs(params);
+                console.log(`Loaded ${auditLogs.value.length} audit logs`);
             } catch (error) {
-                showToast(error.message, 'error');
+                console.error('Error loading audit logs:', error);
+                showToast(`Failed to load audit logs: ${error.message}`, 'error');
             } finally {
                 loading.auditLogs = false;
             }
@@ -209,6 +214,8 @@ const App = {
                 totalWorkspacesCount.value = response.totalElements;
                 hasMoreWorkspaces.value = response.hasNext;
 
+                console.log(`Loading ${newWorkspaces.length} workspaces from page ${currentWorkspacePage.value}`);
+
                 // Load enabled feature flags for each workspace in this batch
                 const workspacesWithFlagsData = await Promise.all(
                     newWorkspaces.map(async (workspace) => {
@@ -228,6 +235,8 @@ const App = {
                     })
                 );
 
+                console.log(`Loaded flags for ${workspacesWithFlagsData.length} workspaces`);
+
                 // Append to existing workspaces
                 workspacesWithFlags.value = [...workspacesWithFlags.value, ...workspacesWithFlagsData];
                 workspaces.value = [...workspaces.value, ...newWorkspaces];
@@ -235,7 +244,8 @@ const App = {
                 // Increment page for next load
                 currentWorkspacePage.value++;
             } catch (error) {
-                showToast(error.message, 'error');
+                console.error('Error loading workspaces:', error);
+                showToast(`Failed to load workspaces: ${error.message}`, 'error');
             } finally {
                 loading.workspaces = false;
                 isLoadingMoreWorkspaces.value = false;
@@ -417,6 +427,26 @@ const App = {
             return changes;
         };
 
+        // Calculate workspace counts per region for a feature flag
+        const getWorkspaceCountsByRegion = (flagId) => {
+            const regionCounts = {};
+
+            // Go through all loaded workspaces with flags
+            workspacesWithFlags.value.forEach(item => {
+                const workspace = item.workspace;
+                const enabledFlags = item.enabledFlags || [];
+
+                // Check if this workspace has the flag enabled
+                const hasFlagEnabled = enabledFlags.some(flag => flag.id === flagId);
+
+                if (hasFlagEnabled && workspace.region) {
+                    regionCounts[workspace.region] = (regionCounts[workspace.region] || 0) + 1;
+                }
+            });
+
+            return regionCounts;
+        };
+
         watch(() => filters.auditFlagId, () => {
             if (currentTab.value === 'audit-logs') {
                 loadAuditLogs();
@@ -518,6 +548,7 @@ const App = {
             loadWorkspaceFeatureFlags,
             formatDate,
             formatJsonDiff,
+            getWorkspaceCountsByRegion,
             workspaceSearchTerm,
             filteredWorkspacesWithFlags,
             paginatedWorkspacesWithFlags,
@@ -580,6 +611,7 @@ const App = {
             </nav>
 
             <main class="main-content">
+                <!-- Debug: Current Tab = {{ currentTab }} -->
                 <Transition name="slide-fade">
                     <div v-if="currentTab === 'dashboard'">
                         <div class="page-header">
@@ -589,7 +621,11 @@ const App = {
                             </div>
                         </div>
 
-                        <div class="stats-grid">
+                        <!-- Loading Skeleton for Stats -->
+                        <SkeletonLoader v-if="loading.featureFlags" type="stat" :count="3" />
+
+                        <!-- Enhanced Stats Cards -->
+                        <div v-else class="stats-grid animate-fade-in">
                             <div class="stat-card">
                                 <div class="stat-icon">
                                     <i class="fas fa-flag"></i>
@@ -617,13 +653,52 @@ const App = {
                                     <div class="stat-label">Teams</div>
                                 </div>
                             </div>
+                            <div class="stat-card">
+                                <div class="stat-icon" style="background: linear-gradient(135deg, #8b5cf6, #6d28d9);">
+                                    <i class="fas fa-globe"></i>
+                                </div>
+                                <div>
+                                    <div class="stat-number">{{ uniqueRegions.length }}</div>
+                                    <div class="stat-label">Regions</div>
+                                </div>
+                            </div>
                         </div>
 
+                        <!-- Data Visualization Charts -->
+                        <div v-if="!loading.featureFlags && !loading.auditLogs && featureFlags.length > 0" class="animate-fade-in-scale">
+                            <DataVisualizationCharts
+                                :feature-flags="featureFlags"
+                                :audit-logs="auditLogs"
+                                :workspaces="[]"
+                            />
+                        </div>
+
+                        <!-- Loading Skeleton for Charts -->
+                        <div v-else-if="loading.featureFlags || loading.auditLogs">
+                            <SkeletonLoader type="chart" :count="2" />
+                        </div>
+
+                        <!-- Recent Activity Section -->
                         <div class="dashboard-sections">
                             <div class="recent-activity">
                                 <h2><i class="fas fa-clock"></i> Recent Activity</h2>
-                                <div v-if="auditLogs.length === 0" class="loading">No recent activity</div>
-                                <div v-else class="activity-list">
+
+                                <!-- Loading Skeleton for Activity -->
+                                <SkeletonLoader v-if="loading.auditLogs && auditLogs.length === 0" type="list" :count="5" />
+
+                                <!-- Empty State -->
+                                <div v-else-if="auditLogs.length === 0" class="empty-state">
+                                    <div class="empty-state-icon">
+                                        <i class="fas fa-history"></i>
+                                    </div>
+                                    <div class="empty-state-title">No Recent Activity</div>
+                                    <div class="empty-state-description">
+                                        There are no recent changes to your feature flags. Start by creating or modifying a flag to see activity here.
+                                    </div>
+                                </div>
+
+                                <!-- Activity List -->
+                                <div v-else class="activity-list stagger-fade-in">
                                     <div v-for="log in auditLogs.slice(0, 10)" :key="log.id" class="activity-item">
                                         <div class="activity-icon" :style="{
                                             background: log.operation === 'CREATE' ? 'var(--success-color)' :
@@ -693,47 +768,146 @@ const App = {
                                 />
                             </div>
 
-                            <div class="data-grid">
-                                <div v-if="loading.featureFlags" class="loading">Loading feature flags...</div>
-                                <div v-else-if="filteredFeatureFlags.length === 0" class="loading">No feature flags found</div>
-                                <div v-else>
-                                    <div v-for="flag in filteredFeatureFlags" :key="flag.id" class="grid-item">
-                                        <div class="grid-content">
-                                            <div class="grid-title">{{ flag.name }}</div>
-                                            <div class="grid-subtitle">{{ flag.description || 'No description' }}</div>
-                                            <div class="grid-meta">
-                                                <span>Team: {{ flag.team }}</span>
-                                                <span>Rollout: {{ flag.rolloutPercentage }}%</span>
-                                            </div>
-                                            <div class="grid-meta">
-                                                <span v-for="region in flag.regions" :key="region" :class="['badge', region === 'ALL' ? 'badge-info' : 'badge-warning']" style="margin-right: 4px;">
-                                                    <i class="fas fa-globe"></i>
-                                                    {{ region }}
-                                                </span>
-                                            </div>
-                                            <div class="progress-bar">
-                                                <div class="progress-fill" :style="{ width: flag.rolloutPercentage + '%' }"></div>
-                                            </div>
-                                            <div class="grid-meta">
-                                                <span :class="['badge', flag.rolloutPercentage > 0 ? 'badge-success' : 'badge-secondary']">
-                                                    {{ flag.rolloutPercentage > 0 ? 'Active' : 'Inactive' }}
-                                                </span>
+                            <!-- Loading Skeleton for Flags -->
+                            <SkeletonLoader v-if="loading.featureFlags" type="flag" :count="5" />
+
+                            <!-- Empty State -->
+                            <div v-else-if="filteredFeatureFlags.length === 0" class="empty-state">
+                                <div class="empty-state-icon">
+                                    <i class="fas fa-flag"></i>
+                                </div>
+                                <div class="empty-state-title">No Feature Flags Found</div>
+                                <div class="empty-state-description">
+                                    <span v-if="searchTerms.featureFlag || filters.team || filters.region">
+                                        Try adjusting your search or filters to find what you're looking for.
+                                    </span>
+                                    <span v-else>
+                                        Get started by creating your first feature flag to control feature rollouts.
+                                    </span>
+                                </div>
+                                <div class="empty-state-actions">
+                                    <button class="btn btn-primary" @click="createFeatureFlag">
+                                        <i class="fas fa-plus"></i>
+                                        Create Your First Flag
+                                    </button>
+                                </div>
+                            </div>
+
+                            <!-- Enhanced Flag Cards with Animation -->
+                            <div class="data-grid stagger-fade-in" v-else>
+                                <div v-for="(flag, index) in filteredFeatureFlags" :key="flag.id"
+                                     class="flag-card-enhanced"
+                                     :class="[flag.rolloutPercentage > 0 ? 'active' : 'inactive']"
+                                     :style="{ animationDelay: (index * 0.05) + 's' }">
+
+                                    <div class="flag-card-content">
+                                        <!-- Header with Status Indicator -->
+                                        <div class="flag-card-header">
+                                            <div class="flag-card-title-section">
+                                                <div class="flag-card-title">
+                                                    <i class="fas fa-flag"></i>
+                                                    {{ flag.name }}
+                                                    <div class="flag-card-status-indicator"
+                                                         :class="flag.rolloutPercentage > 0 ? 'active' : 'inactive'">
+                                                    </div>
+                                                </div>
+                                                <div class="flag-card-description">
+                                                    {{ flag.description || 'No description provided' }}
+                                                </div>
                                             </div>
                                         </div>
-                                        <div class="grid-actions">
-                                            <button class="btn btn-sm btn-secondary" @click="editFeatureFlag(flag)" title="Edit rollout percentage, regions, and other settings">
+
+                                        <!-- Metadata Badges -->
+                                        <div class="flag-card-meta">
+                                            <span class="badge badge-info">
+                                                <i class="fas fa-users"></i>
+                                                {{ flag.team }}
+                                            </span>
+                                            <span v-for="region in flag.regions" :key="region"
+                                                  :class="['badge', region === 'ALL' ? 'badge-primary' : 'badge-warning']">
+                                                <i class="fas fa-globe"></i>
+                                                {{ region }}
+                                            </span>
+                                            <span :class="['badge', flag.rolloutPercentage > 0 ? 'badge-success' : 'badge-secondary']">
+                                                <i :class="['fas', flag.rolloutPercentage > 0 ? 'fa-check-circle' : 'fa-times-circle']"></i>
+                                                {{ flag.rolloutPercentage > 0 ? 'Active' : 'Inactive' }}
+                                            </span>
+                                        </div>
+
+                                        <!-- Rollout Progress Bar -->
+                                        <div class="flag-card-rollout">
+                                            <div class="flag-card-rollout-label">
+                                                <span>Rollout Progress</span>
+                                                <span class="flag-card-rollout-percentage"
+                                                      :class="{
+                                                          'high': flag.rolloutPercentage > 75,
+                                                          'medium': flag.rolloutPercentage >= 25 && flag.rolloutPercentage <= 75,
+                                                          'low': flag.rolloutPercentage < 25
+                                                      }">
+                                                    {{ flag.rolloutPercentage }}%
+                                                </span>
+                                            </div>
+                                            <div class="flag-card-rollout-bar">
+                                                <div class="flag-card-rollout-fill"
+                                                     :class="{
+                                                         'high': flag.rolloutPercentage > 75,
+                                                         'medium': flag.rolloutPercentage >= 25 && flag.rolloutPercentage <= 75,
+                                                         'low': flag.rolloutPercentage < 25
+                                                     }"
+                                                     :style="{ width: flag.rolloutPercentage + '%' }">
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <!-- Enabled Workspaces by Region -->
+                                        <div v-if="Object.keys(getWorkspaceCountsByRegion(flag.id)).length > 0"
+                                             style="margin-top: var(--spacing-4); padding: var(--spacing-3); background: var(--gray-50); border-radius: var(--radius-lg); border: 1px solid var(--gray-200);">
+                                            <div style="display: flex; align-items: center; gap: var(--spacing-2); margin-bottom: var(--spacing-2);">
+                                                <i class="fas fa-building" style="color: var(--primary-600);"></i>
+                                                <span style="font-weight: var(--font-semibold); font-size: var(--text-sm); color: var(--text-primary);">
+                                                    Enabled Workspaces by Region
+                                                </span>
+                                            </div>
+                                            <div style="display: flex; flex-wrap: wrap; gap: var(--spacing-2);">
+                                                <div v-for="(count, region) in getWorkspaceCountsByRegion(flag.id)"
+                                                     :key="region"
+                                                     style="display: flex; align-items: center; gap: var(--spacing-2); padding: 6px 12px; background: white; border: 1px solid var(--gray-300); border-radius: var(--radius-md); box-shadow: var(--shadow-xs);">
+                                                    <span class="badge badge-warning" style="font-size: var(--text-xs);">
+                                                        <i class="fas fa-globe"></i>
+                                                        {{ region }}
+                                                    </span>
+                                                    <span style="font-weight: var(--font-bold); color: var(--primary-600); font-size: var(--text-sm);">
+                                                        {{ count }}
+                                                    </span>
+                                                    <span style="color: var(--text-secondary); font-size: var(--text-xs);">
+                                                        {{ count === 1 ? 'workspace' : 'workspaces' }}
+                                                    </span>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <!-- Action Buttons -->
+                                        <div class="grid-actions" style="margin-top: var(--spacing-4);">
+                                            <button class="btn btn-sm btn-secondary hover-lift"
+                                                    @click="editFeatureFlag(flag)"
+                                                    title="Edit rollout percentage, regions, and other settings">
                                                 <i class="fas fa-percentage"></i>
-                                                Edit Rollout Percentage
+                                                Edit Settings
                                             </button>
-                                            <button class="btn btn-sm btn-info" @click="editWorkspaces(flag)" title="Enable/disable this flag for specific workspaces">
+                                            <button class="btn btn-sm btn-info hover-lift"
+                                                    @click="editWorkspaces(flag)"
+                                                    title="Enable/disable this flag for specific workspaces">
                                                 <i class="fas fa-building"></i>
-                                                Edit Workspaces
+                                                Manage Workspaces
                                             </button>
-                                            <button class="btn btn-sm btn-success" @click="viewEnabledWorkspaces(flag)" title="View all workspaces where this flag is enabled">
+                                            <button class="btn btn-sm btn-success hover-lift"
+                                                    @click="viewEnabledWorkspaces(flag)"
+                                                    title="View all workspaces where this flag is enabled">
                                                 <i class="fas fa-list"></i>
-                                                View Enabled Workspaces
+                                                View Enabled
                                             </button>
-                                            <button class="btn btn-sm btn-danger" @click="deleteFeatureFlag(flag)">
+                                            <button class="btn btn-sm btn-danger hover-lift"
+                                                    @click="deleteFeatureFlag(flag)">
                                                 <i class="fas fa-trash"></i>
                                                 Delete
                                             </button>
@@ -778,40 +952,74 @@ const App = {
                                 />
                             </div>
 
-                            <div class="audit-table-container">
-                                <div v-if="loading.auditLogs" class="loading">Loading audit logs...</div>
-                                <div v-else-if="filteredAuditLogs.length === 0" class="loading">No audit logs found</div>
-                                <table v-else class="audit-table">
+                            <!-- Loading Skeleton for Audit Logs -->
+                            <SkeletonLoader v-if="loading.auditLogs" type="table" :count="10" />
+
+                            <!-- Empty State -->
+                            <div v-else-if="filteredAuditLogs.length === 0" class="empty-state">
+                                <div class="empty-state-icon">
+                                    <i class="fas fa-history"></i>
+                                </div>
+                                <div class="empty-state-title">No Audit Logs Found</div>
+                                <div class="empty-state-description">
+                                    <span v-if="searchTerms.auditLog || filters.auditFlagId || filters.auditOperation">
+                                        Try adjusting your search or filters to find audit logs.
+                                    </span>
+                                    <span v-else>
+                                        Audit logs will appear here when you create, update, or delete feature flags.
+                                    </span>
+                                </div>
+                            </div>
+
+                            <div v-else class="audit-table-container animate-fade-in">
+                                <table class="audit-table">
                                     <thead>
                                         <tr>
-                                            <th>Operation</th>
-                                            <th>Feature Flag</th>
-                                            <th>Team</th>
-                                            <th>Timestamp</th>
-                                            <th>Changed By</th>
-                                            <th>Changes</th>
+                                            <th><i class="fas fa-tag"></i> Operation</th>
+                                            <th><i class="fas fa-flag"></i> Feature Flag</th>
+                                            <th><i class="fas fa-users"></i> Team</th>
+                                            <th><i class="fas fa-clock"></i> Timestamp</th>
+                                            <th><i class="fas fa-user"></i> Changed By</th>
+                                            <th><i class="fas fa-exchange-alt"></i> Changes</th>
                                         </tr>
                                     </thead>
-                                    <tbody>
-                                        <tr v-for="log in filteredAuditLogs" :key="log.id">
+                                    <tbody class="stagger-fade-in">
+                                        <tr v-for="(log, index) in filteredAuditLogs" :key="log.id"
+                                            :style="{ animationDelay: (index * 0.03) + 's' }">
                                             <td>
                                                 <span :class="['badge', log.operation === 'CREATE' ? 'badge-success' : log.operation === 'UPDATE' ? 'badge-info' : 'badge-danger']">
+                                                    <i :class="['fas', log.operation === 'CREATE' ? 'fa-plus' : log.operation === 'UPDATE' ? 'fa-edit' : 'fa-trash']"></i>
                                                     {{ log.operation }}
                                                 </span>
                                             </td>
-                                            <td><strong>{{ log.featureFlagName }}</strong></td>
-                                            <td>{{ log.team }}</td>
-                                            <td>{{ formatDate(log.timestamp) }}</td>
-                                            <td>{{ log.changedBy || '-' }}</td>
+                                            <td>
+                                                <strong style="color: var(--primary-600);">{{ log.featureFlagName }}</strong>
+                                            </td>
+                                            <td>
+                                                <span class="badge badge-secondary">{{ log.team }}</span>
+                                            </td>
+                                            <td style="font-size: var(--text-sm); color: var(--text-secondary);">
+                                                {{ formatDate(log.timestamp) }}
+                                            </td>
+                                            <td>
+                                                <span v-if="log.changedBy" class="badge badge-info">
+                                                    <i class="fas fa-user"></i>
+                                                    {{ log.changedBy }}
+                                                </span>
+                                                <span v-else style="color: var(--text-tertiary);">-</span>
+                                            </td>
                                             <td class="changes-cell">
-                                                <div v-if="formatJsonDiff(log.oldValues, log.newValues).length === 0">
+                                                <div v-if="formatJsonDiff(log.oldValues, log.newValues).length === 0"
+                                                     style="color: var(--text-tertiary); font-style: italic;">
                                                     No changes
                                                 </div>
                                                 <div v-else class="changes-list">
-                                                    <div v-for="change in formatJsonDiff(log.oldValues, log.newValues)" :key="change.field" class="change-item">
-                                                        <strong>{{ change.field }}:</strong>
+                                                    <div v-for="change in formatJsonDiff(log.oldValues, log.newValues)"
+                                                         :key="change.field"
+                                                         class="change-item">
+                                                        <strong style="color: var(--primary-600);">{{ change.field }}:</strong>
                                                         <span class="old-value">{{ change.old !== null ? JSON.stringify(change.old) : '-' }}</span>
-                                                        <i class="fas fa-arrow-right"></i>
+                                                        <i class="fas fa-arrow-right" style="color: var(--primary-500);"></i>
                                                         <span class="new-value">{{ change.new !== null ? JSON.stringify(change.new) : '-' }}</span>
                                                     </div>
                                                 </div>
@@ -843,20 +1051,39 @@ const App = {
                                 />
                             </div>
 
-                            <div v-if="loading.workspaces && workspacesWithFlags.length === 0" class="loading">Loading workspaces...</div>
-                            <div v-else-if="filteredWorkspacesWithFlags.length === 0" class="loading">
-                                No workspaces found
+                            <!-- Loading Skeleton for Workspaces -->
+                            <SkeletonLoader v-if="loading.workspaces" type="workspace" :count="6" />
+
+                            <!-- Empty State -->
+                            <div v-else-if="!loading.workspaces && filteredWorkspacesWithFlags.length === 0" class="empty-state">
+                                <div class="empty-state-icon">
+                                    <i class="fas fa-building"></i>
+                                </div>
+                                <div class="empty-state-title">No Workspaces Found</div>
+                                <div class="empty-state-description">
+                                    <span v-if="workspaceSearchTerm">
+                                        No workspaces match your search. Try a different search term.
+                                    </span>
+                                    <span v-else>
+                                        No workspaces are available at the moment.
+                                    </span>
+                                </div>
                             </div>
-                            <div v-else>
-                                <div class="workspace-info-header" style="padding: 12px; background: var(--bg-secondary); border-radius: 8px; margin-bottom: 16px;">
-                                    <p style="margin: 0; color: var(--text-secondary);">
-                                        <i class="fas fa-info-circle"></i>
-                                        Showing {{ filteredWorkspacesWithFlags.length }} of {{ totalWorkspacesCount }} workspaces
-                                        <span v-if="hasMoreWorkspaces"> - Scroll down to load more</span>
+
+                            <div v-else class="animate-fade-in">
+                                <div class="workspace-info-header" style="padding: 16px; background: linear-gradient(135deg, rgba(0, 42, 134, 0.05), rgba(31, 91, 163, 0.05)); border: 1px solid var(--border-color); border-radius: var(--radius-xl); margin-bottom: 24px; box-shadow: var(--shadow-xs);">
+                                    <p style="margin: 0; color: var(--text-secondary); display: flex; align-items: center; gap: var(--spacing-2); font-weight: var(--font-medium);">
+                                        <i class="fas fa-info-circle" style="color: var(--primary-500);"></i>
+                                        Showing <strong style="color: var(--primary-600); margin: 0 4px;">{{ filteredWorkspacesWithFlags.length }}</strong> of <strong style="color: var(--primary-600); margin: 0 4px;">{{ totalWorkspacesCount }}</strong> workspaces
+                                        <span v-if="hasMoreWorkspaces" style="margin-left: 8px; color: var(--success-600);">
+                                            <i class="fas fa-arrow-down"></i> Scroll to load more
+                                        </span>
                                     </p>
                                 </div>
-                                <div class="workspace-cards-grid">
-                                    <div v-for="item in paginatedWorkspacesWithFlags" :key="item.workspace.id" class="workspace-card">
+                                <div class="workspace-cards-grid stagger-fade-in">
+                                    <div v-for="(item, index) in paginatedWorkspacesWithFlags" :key="item.workspace.id"
+                                         class="workspace-card hover-lift"
+                                         :style="{ animationDelay: (index * 0.05) + 's' }">
                                         <div class="workspace-card-header">
                                             <div class="workspace-card-title">
                                                 <i class="fas fa-building"></i>
@@ -963,21 +1190,39 @@ const App = {
                                 />
                             </div>
 
-                            <div v-if="loading.enabledWorkspaces && enabledWorkspaces.length === 0" class="loading">Loading workspaces...</div>
-                            <div v-else-if="enabledWorkspaces.length === 0" class="loading">
-                                <span v-if="enabledWorkspacesSearchTerm">No workspaces found matching "{{ enabledWorkspacesSearchTerm }}"</span>
-                                <span v-else>No workspaces have this feature flag enabled</span>
+                            <!-- Loading Skeleton -->
+                            <SkeletonLoader v-if="loading.enabledWorkspaces" type="workspace" :count="6" />
+
+                            <!-- Empty State -->
+                            <div v-else-if="!loading.enabledWorkspaces && enabledWorkspaces.length === 0" class="empty-state">
+                                <div class="empty-state-icon">
+                                    <i class="fas fa-building"></i>
+                                </div>
+                                <div class="empty-state-title">No Enabled Workspaces</div>
+                                <div class="empty-state-description">
+                                    <span v-if="enabledWorkspacesSearchTerm">
+                                        No workspaces found matching "{{ enabledWorkspacesSearchTerm }}"
+                                    </span>
+                                    <span v-else>
+                                        No workspaces have this feature flag enabled yet
+                                    </span>
+                                </div>
                             </div>
-                            <div v-else>
-                                <div class="workspace-info-header" style="padding: 12px; background: var(--bg-secondary); border-radius: 8px; margin-bottom: 16px;">
-                                    <p style="margin: 0; color: var(--text-secondary);">
-                                        <i class="fas fa-info-circle"></i>
-                                        Showing {{ enabledWorkspaces.length }} of {{ totalEnabledWorkspacesCount }} enabled workspaces
-                                        <span v-if="enabledWorkspacesSearchTerm"> matching "{{ enabledWorkspacesSearchTerm }}"</span>
-                                        <span v-if="hasMoreEnabledWorkspaces"> - Scroll down to load more</span>
+
+                            <div v-else class="animate-fade-in">
+                                <div class="workspace-info-header" style="padding: 16px; background: linear-gradient(135deg, rgba(0, 42, 134, 0.05), rgba(31, 91, 163, 0.05)); border: 1px solid var(--border-color); border-radius: var(--radius-xl); margin-bottom: 24px; box-shadow: var(--shadow-xs);">
+                                    <p style="margin: 0; color: var(--text-secondary); display: flex; align-items: center; gap: var(--spacing-2); font-weight: var(--font-medium);">
+                                        <i class="fas fa-info-circle" style="color: var(--primary-500);"></i>
+                                        Showing <strong style="color: var(--primary-600); margin: 0 4px;">{{ enabledWorkspaces.length }}</strong> of <strong style="color: var(--primary-600); margin: 0 4px;">{{ totalEnabledWorkspacesCount }}</strong> enabled workspaces
+                                        <span v-if="enabledWorkspacesSearchTerm" style="margin-left: 8px;">
+                                            matching "<strong style="color: var(--primary-600);">{{ enabledWorkspacesSearchTerm }}</strong>"
+                                        </span>
+                                        <span v-if="hasMoreEnabledWorkspaces" style="margin-left: 8px; color: var(--success-600);">
+                                            <i class="fas fa-arrow-down"></i> Scroll to load more
+                                        </span>
                                     </p>
                                 </div>
-                                <div class="data-grid">
+                                <div class="data-grid stagger-fade-in">
                                     <div v-for="workspace in enabledWorkspaces" :key="workspace.id" class="grid-item">
                                         <div class="grid-content">
                                             <div class="grid-title">
@@ -1035,11 +1280,21 @@ const App = {
                         </div>
 
                         <div class="content-section">
-                            <div v-if="loading.workspaceFlags" class="loading">Loading feature flags...</div>
-                            <div v-else-if="workspaceFlags.length === 0" class="loading">
-                                No feature flags are enabled for this workspace
+                            <!-- Loading Skeleton -->
+                            <SkeletonLoader v-if="loading.workspaceFlags" type="flag" :count="5" />
+
+                            <!-- Empty State -->
+                            <div v-else-if="workspaceFlags.length === 0" class="empty-state">
+                                <div class="empty-state-icon">
+                                    <i class="fas fa-flag"></i>
+                                </div>
+                                <div class="empty-state-title">No Feature Flags Enabled</div>
+                                <div class="empty-state-description">
+                                    No feature flags are currently enabled for this workspace
+                                </div>
                             </div>
-                            <div v-else class="data-grid">
+
+                            <div v-else class="data-grid stagger-fade-in animate-fade-in">
                                 <div v-for="flag in workspaceFlags" :key="flag.id" class="grid-item">
                                     <div class="grid-content">
                                         <div class="grid-title">{{ flag.name }}</div>
