@@ -17,10 +17,10 @@ class AuditLogService(
 
     fun logCreate(featureFlag: FeatureFlag, changedBy: String? = "system") {
         val newValues = mapOf(
-            "name" to featureFlag.name,
-            "description" to featureFlag.description,
-            "team" to featureFlag.team,
-            "rolloutPercentage" to featureFlag.rolloutPercentage
+            "Name" to featureFlag.name,
+            "Description" to featureFlag.description,
+            "Team" to featureFlag.team,
+            "Rollout Percentage" to featureFlag.rolloutPercentage
         )
 
         val auditLog = FeatureFlagAuditLog(
@@ -43,11 +43,11 @@ class AuditLogService(
         changedBy: String? = "system"
     ) {
         val oldValues = mapOf(
-            "rolloutPercentage" to oldRolloutPercentage,
+            "Rollout Percentage" to oldRolloutPercentage,
         )
 
         val newValues = mapOf(
-            "rolloutPercentage" to newRolloutPercentage,
+            "Rollout Percentage" to newRolloutPercentage,
         )
 
         val auditLog = FeatureFlagAuditLog(
@@ -65,10 +65,10 @@ class AuditLogService(
 
     fun logDelete(featureFlag: FeatureFlag, changedBy: String? = "system") {
         val oldValues = mapOf(
-            "name" to featureFlag.name,
-            "description" to featureFlag.description,
-            "team" to featureFlag.team,
-            "rolloutPercentage" to featureFlag.rolloutPercentage
+            "Name" to featureFlag.name,
+            "Description" to featureFlag.description,
+            "Team" to featureFlag.team,
+            "Rollout Percentage" to featureFlag.rolloutPercentage
         )
 
         val auditLog = FeatureFlagAuditLog(
@@ -134,19 +134,19 @@ class AuditLogService(
                     )
 
                     // Extract old pinned workspaces
-                    oldPinnedWorkspaces = when (val pinned = previousNewValues["pinnedWorkspaces"]) {
+                    oldPinnedWorkspaces = when (val pinned = previousNewValues["Manually Enabled Workspaces"]) {
                         is List<*> -> pinned.filterIsInstance<String>()
                         else -> emptyList()
                     }
 
                     // Extract old excluded workspaces
-                    oldExcludedWorkspaces = when (val excluded = previousNewValues["excludedWorkspaces"]) {
+                    oldExcludedWorkspaces = when (val excluded = previousNewValues["Manually Disabled Workspaces"]) {
                         is List<*> -> excluded.filterIsInstance<String>()
                         else -> emptyList()
                     }
 
                     // Extract old target region
-                    oldTargetRegion = previousNewValues["targetRegion"] as? String
+                    oldTargetRegion = previousNewValues["Region"] as? String
                 } catch (e: Exception) {
                     // If we can't parse the previous values, just continue with empty lists
                 }
@@ -154,43 +154,43 @@ class AuditLogService(
         }
 
         val oldValuesMap: MutableMap<String, Any> = mutableMapOf(
-            "enabledWorkspaces" to oldEnabledCount,
-            "rolloutPercentage" to oldRolloutPercentage
+            "Enabled Workspaces" to oldEnabledCount,
+            "Rollout Percentage" to oldRolloutPercentage
         )
 
         // Add old pinned workspaces if any existed
         if (oldPinnedWorkspaces.isNotEmpty()) {
-            oldValuesMap["pinnedWorkspaces"] = oldPinnedWorkspaces
+            oldValuesMap["Manually Enabled Workspaces"] = oldPinnedWorkspaces
         }
 
         // Add old excluded workspaces if any existed
         if (oldExcludedWorkspaces.isNotEmpty()) {
-            oldValuesMap["excludedWorkspaces"] = oldExcludedWorkspaces
+            oldValuesMap["Manually Disabled Workspaces"] = oldExcludedWorkspaces
         }
 
         // Add old target region if it existed
         if (oldTargetRegion != null) {
-            oldValuesMap["targetRegion"] = oldTargetRegion
+            oldValuesMap["Region"] = oldTargetRegion
         }
 
         val newValuesMap: MutableMap<String, Any> = mutableMapOf(
-            "enabledWorkspaces" to newEnabledCount,
-            "rolloutPercentage" to newRolloutPercentage
+            "Enabled Workspaces" to newEnabledCount,
+            "Rollout Percentage" to newRolloutPercentage
         )
 
         // Add new pinned workspaces if any
         if (newPinnedWorkspaces.isNotEmpty()) {
-            newValuesMap["pinnedWorkspaces"] = newPinnedWorkspaces
+            newValuesMap["Manually Enabled Workspaces"] = newPinnedWorkspaces
         }
 
         // Add new excluded workspaces if any
         if (newExcludedWorkspaces.isNotEmpty()) {
-            newValuesMap["excludedWorkspaces"] = newExcludedWorkspaces
+            newValuesMap["Manually Disabled Workspaces"] = newExcludedWorkspaces
         }
 
         // Add target region if specified
         if (targetRegion != null) {
-            newValuesMap["targetRegion"] = targetRegion
+            newValuesMap["Region"] = targetRegion
         }
 
         val auditLog = FeatureFlagAuditLog(

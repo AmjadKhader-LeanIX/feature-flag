@@ -55,9 +55,9 @@ class FeatureFlagService(
         }
 
         val featureFlag = FeatureFlag(
-            name = request.name,
+            name = request.name.lowercase(),
             description = request.description,
-            team = request.team,
+            team = request.team.uppercase(),
             rolloutPercentage = request.rolloutPercentage
         )
         val savedFeatureFlag = featureFlagRepository.save(featureFlag)
