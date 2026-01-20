@@ -15,52 +15,61 @@ const WorkspaceFeatureFlagComponent = {
         const loadingWorkspaces = ref(false);
         const selectedWorkspaceIds = ref([]);
         const searchTerm = ref('');
-        const enabledAction = ref(true);
         const rolloutPercentage = ref(0);
         const initialRolloutPercentage = ref(0);
 
-        // Pagination state
-        const currentPage = ref(1);
+        // Pagination state - using 0-based for API
+        const currentPage = ref(0);
         const pageSize = ref(20);
-
-        const filteredWorkspaces = computed(() => {
-            if (!searchTerm.value) {
-                return workspaces.value;
-            }
-            return workspaces.value.filter(workspace =>
-                workspace.name.toLowerCase().includes(searchTerm.value.toLowerCase()) ||
-                workspace.type?.toLowerCase().includes(searchTerm.value.toLowerCase()) ||
-                workspace.region?.toLowerCase().includes(searchTerm.value.toLowerCase())
-            );
-        });
-
-        const totalPages = computed(() => {
-            return Math.ceil(filteredWorkspaces.value.length / pageSize.value);
-        });
-
-        const paginatedWorkspaces = computed(() => {
-            const start = (currentPage.value - 1) * pageSize.value;
-            const end = start + pageSize.value;
-            return filteredWorkspaces.value.slice(start, end);
-        });
+        const totalElements = ref(0);
+        const totalPages = ref(0);
 
         const selectedCount = computed(() => selectedWorkspaceIds.value.length);
 
         const hasRolloutChanged = computed(() => rolloutPercentage.value !== initialRolloutPercentage.value);
 
-        const hasPreviousPage = computed(() => currentPage.value > 1);
-        const hasNextPage = computed(() => currentPage.value < totalPages.value);
+        const hasPreviousPage = computed(() => currentPage.value > 0);
+        const hasNextPage = computed(() => currentPage.value < totalPages.value - 1);
 
-        const loadWorkspaces = async () => {
+        const loadWorkspaces = async (resetPage = false) => {
             try {
                 loadingWorkspaces.value = true;
-                const response = await apiService.getWorkspaces(0, 1000); // Load up to 1000 workspaces
+
+                if (resetPage) {
+                    currentPage.value = 0;
+                }
+
+                // Use server-side search and pagination
+                const response = await apiService.getWorkspaces(
+                    currentPage.value,
+                    pageSize.value,
+                    searchTerm.value
+                );
+
                 workspaces.value = response.content || [];
+                totalElements.value = response.totalElements || 0;
+                totalPages.value = response.totalPages || 0;
             } catch (error) {
                 console.error('Failed to load workspaces:', error);
                 workspaces.value = [];
+                totalElements.value = 0;
+                totalPages.value = 0;
             } finally {
                 loadingWorkspaces.value = false;
+            }
+        };
+
+        const loadEnabledWorkspaces = async () => {
+            try {
+                // Fetch all enabled workspaces for this feature flag
+                const response = await apiService.getEnabledWorkspacesForFeatureFlag(props.featureFlag.id, 0, 10000);
+                const enabledWorkspaces = response.content || [];
+
+                // Pre-select the workspaces that have this flag enabled
+                selectedWorkspaceIds.value = enabledWorkspaces.map(ws => ws.id);
+            } catch (error) {
+                console.error('Failed to load enabled workspaces:', error);
+                selectedWorkspaceIds.value = [];
             }
         };
 
@@ -74,7 +83,7 @@ const WorkspaceFeatureFlagComponent = {
         };
 
         const selectAll = () => {
-            selectedWorkspaceIds.value = filteredWorkspaces.value.map(w => w.id);
+            selectedWorkspaceIds.value = workspaces.value.map(w => w.id);
         };
 
         const deselectAll = () => {
@@ -89,7 +98,7 @@ const WorkspaceFeatureFlagComponent = {
 
             emit('submit', {
                 workspaceIds: selectedWorkspaceIds.value,
-                enabled: enabledAction.value,
+                enabled: true, // Always enable for selected workspaces
                 rolloutPercentage: rolloutPercentage.value
             });
         };
@@ -99,33 +108,47 @@ const WorkspaceFeatureFlagComponent = {
         };
 
         const goToPage = (page) => {
-            if (page >= 1 && page <= totalPages.value) {
+            if (page >= 0 && page < totalPages.value) {
                 currentPage.value = page;
+                loadWorkspaces();
             }
         };
 
         const nextPage = () => {
             if (hasNextPage.value) {
                 currentPage.value++;
+                loadWorkspaces();
             }
         };
 
         const previousPage = () => {
             if (hasPreviousPage.value) {
                 currentPage.value--;
+                loadWorkspaces();
             }
         };
 
-        // Reset to page 1 when search term changes
+        // Debounced search - reload workspaces when search term changes
+        let searchTimeout = null;
         watch(searchTerm, () => {
-            currentPage.value = 1;
+            if (searchTimeout) {
+                clearTimeout(searchTimeout);
+            }
+            searchTimeout = setTimeout(() => {
+                loadWorkspaces(true); // Reset to page 0 when searching
+            }, 500); // 500ms debounce
         });
 
         // Load workspaces when component is mounted (lazy loading when modal opens)
-        onMounted(() => {
-            loadWorkspaces();
+        onMounted(async () => {
             rolloutPercentage.value = props.featureFlag.rolloutPercentage || 0;
             initialRolloutPercentage.value = props.featureFlag.rolloutPercentage || 0;
+
+            // Load enabled workspaces first to pre-select them
+            await loadEnabledWorkspaces();
+
+            // Then load the first page of workspaces
+            await loadWorkspaces();
         });
 
         // Watch for feature flag changes
@@ -141,14 +164,12 @@ const WorkspaceFeatureFlagComponent = {
             loadingWorkspaces,
             selectedWorkspaceIds,
             searchTerm,
-            enabledAction,
             rolloutPercentage,
-            filteredWorkspaces,
-            paginatedWorkspaces,
             selectedCount,
             hasRolloutChanged,
             currentPage,
             totalPages,
+            totalElements,
             pageSize,
             hasPreviousPage,
             hasNextPage,
@@ -177,22 +198,6 @@ const WorkspaceFeatureFlagComponent = {
             </div>
 
             <div class="form-section">
-                <label class="form-label">Action</label>
-                <div class="radio-group">
-                    <label class="radio-option">
-                        <input type="radio" :value="true" v-model="enabledAction" />
-                        <i class="fas fa-check-circle" style="color: var(--success-color);"></i>
-                        <span>Enable for selected workspaces</span>
-                    </label>
-                    <label class="radio-option">
-                        <input type="radio" :value="false" v-model="enabledAction" />
-                        <i class="fas fa-times-circle" style="color: var(--danger-color);"></i>
-                        <span>Disable for selected workspaces</span>
-                    </label>
-                </div>
-            </div>
-
-            <div class="form-section">
                 <label class="form-label" for="rollout-slider">Rollout Percentage</label>
                 <div class="range-input">
                     <input
@@ -214,8 +219,8 @@ const WorkspaceFeatureFlagComponent = {
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
                     <label class="form-label" style="margin-bottom: 0;">Select Workspaces ({{ selectedCount }} selected)</label>
                     <div style="display: flex; gap: 8px;">
-                        <button type="button" class="btn btn-sm btn-secondary" @click="selectAll" :disabled="filteredWorkspaces.length === 0">
-                            Select All
+                        <button type="button" class="btn btn-sm btn-secondary" @click="selectAll" :disabled="workspaces.length === 0">
+                            Select All on Page
                         </button>
                         <button type="button" class="btn btn-sm btn-secondary" @click="deselectAll" :disabled="selectedCount === 0">
                             Deselect All
@@ -236,69 +241,64 @@ const WorkspaceFeatureFlagComponent = {
                     Loading workspaces...
                 </div>
                 <div v-else-if="workspaces.length === 0" class="loading" style="padding: 20px;">
-                    No workspaces available
+                    No workspaces match your search
                 </div>
                 <div v-else>
-                    <div v-if="filteredWorkspaces.length === 0" class="loading" style="padding: 20px;">
-                        No workspaces match your search
-                    </div>
-                    <div v-else>
-                        <div class="workspace-list">
-                            <label
-                                v-for="workspace in paginatedWorkspaces"
-                                :key="workspace.id"
-                                class="workspace-item"
-                                :class="{ selected: selectedWorkspaceIds.includes(workspace.id) }"
-                            >
-                                <input
-                                    type="checkbox"
-                                    :value="workspace.id"
-                                    :checked="selectedWorkspaceIds.includes(workspace.id)"
-                                    @change="toggleWorkspace(workspace.id)"
-                                />
-                                <div class="workspace-info">
-                                    <div class="workspace-name">
-                                        <i class="fas fa-building"></i>
-                                        {{ workspace.name }}
-                                    </div>
-                                    <div class="workspace-meta">
-                                        <span v-if="workspace.type" class="badge badge-secondary">{{ workspace.type }}</span>
-                                        <span v-if="workspace.region" class="badge badge-warning">
-                                            <i class="fas fa-globe"></i>
-                                            {{ workspace.region }}
-                                        </span>
-                                    </div>
+                    <div class="workspace-list">
+                        <label
+                            v-for="workspace in workspaces"
+                            :key="workspace.id"
+                            class="workspace-item"
+                            :class="{ selected: selectedWorkspaceIds.includes(workspace.id) }"
+                        >
+                            <input
+                                type="checkbox"
+                                :value="workspace.id"
+                                :checked="selectedWorkspaceIds.includes(workspace.id)"
+                                @change="toggleWorkspace(workspace.id)"
+                            />
+                            <div class="workspace-info">
+                                <div class="workspace-name">
+                                    <i class="fas fa-building"></i>
+                                    {{ workspace.name }}
                                 </div>
-                            </label>
-                        </div>
+                                <div class="workspace-meta">
+                                    <span v-if="workspace.type" class="badge badge-secondary">{{ workspace.type }}</span>
+                                    <span v-if="workspace.region" class="badge badge-warning">
+                                        <i class="fas fa-globe"></i>
+                                        {{ workspace.region }}
+                                    </span>
+                                </div>
+                            </div>
+                        </label>
+                    </div>
 
-                        <div v-if="totalPages > 1" class="pagination-controls" style="display: flex; justify-content: space-between; align-items: center; padding: 12px; border-top: 1px solid var(--border-color); margin-top: 12px;">
-                            <div style="color: var(--text-secondary); font-size: var(--text-sm);">
-                                Showing {{ ((currentPage - 1) * pageSize) + 1 }} - {{ Math.min(currentPage * pageSize, filteredWorkspaces.length) }} of {{ filteredWorkspaces.length }} workspaces
-                            </div>
-                            <div style="display: flex; gap: 8px; align-items: center;">
-                                <button
-                                    type="button"
-                                    class="btn btn-sm btn-secondary"
-                                    @click="previousPage"
-                                    :disabled="!hasPreviousPage"
-                                >
-                                    <i class="fas fa-chevron-left"></i>
-                                    Previous
-                                </button>
-                                <span style="color: var(--text-secondary); font-size: var(--text-sm); padding: 0 12px;">
-                                    Page {{ currentPage }} of {{ totalPages }}
-                                </span>
-                                <button
-                                    type="button"
-                                    class="btn btn-sm btn-secondary"
-                                    @click="nextPage"
-                                    :disabled="!hasNextPage"
-                                >
-                                    Next
-                                    <i class="fas fa-chevron-right"></i>
-                                </button>
-                            </div>
+                    <div v-if="totalPages > 1" class="pagination-controls" style="display: flex; justify-content: space-between; align-items: center; padding: 12px; border-top: 1px solid var(--border-color); margin-top: 12px;">
+                        <div style="color: var(--text-secondary); font-size: var(--text-sm);">
+                            Showing {{ (currentPage * pageSize) + 1 }} - {{ Math.min((currentPage + 1) * pageSize, totalElements) }} of {{ totalElements }} workspaces
+                        </div>
+                        <div style="display: flex; gap: 8px; align-items: center;">
+                            <button
+                                type="button"
+                                class="btn btn-sm btn-secondary"
+                                @click="previousPage"
+                                :disabled="!hasPreviousPage"
+                            >
+                                <i class="fas fa-chevron-left"></i>
+                                Previous
+                            </button>
+                            <span style="color: var(--text-secondary); font-size: var(--text-sm); padding: 0 12px;">
+                                Page {{ currentPage + 1 }} of {{ totalPages }}
+                            </span>
+                            <button
+                                type="button"
+                                class="btn btn-sm btn-secondary"
+                                @click="nextPage"
+                                :disabled="!hasNextPage"
+                            >
+                                Next
+                                <i class="fas fa-chevron-right"></i>
+                            </button>
                         </div>
                     </div>
                 </div>
