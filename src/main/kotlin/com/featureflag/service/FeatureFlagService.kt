@@ -52,20 +52,16 @@ class FeatureFlagService(
             throw IllegalArgumentException("Feature flag with name '${request.name}' already exists in this team")
         }
 
-        val regionsString = request.regions.joinToString(",")
         val featureFlag = FeatureFlag(
             name = request.name,
             description = request.description,
             team = request.team,
-            rolloutPercentage = request.rolloutPercentage,
-            regions = regionsString
+            rolloutPercentage = request.rolloutPercentage
         )
         val savedFeatureFlag = featureFlagRepository.save(featureFlag)
 
-        val featureFlagRegions = featureFlag.regions.split(",").map { it.trim() }.toList()
-
         workspaceFeatureFlagRepository.saveAll(
-            workspaceRepository.findByRegionIn(featureFlagRegions).map { workspace ->
+            workspaceRepository.findAll().map { workspace ->
                 WorkspaceFeatureFlag(
                     workspace = workspace,
                     featureFlag = savedFeatureFlag,
@@ -94,13 +90,11 @@ class FeatureFlagService(
             throw IllegalArgumentException("Feature flag with name '${request.name}' already exists in this team")
         }
 
-        val regionsString = request.regions.joinToString(",")
         val updatedFeatureFlag = featureFlag.copy(
             name = request.name,
             description = request.description,
             team = request.team,
-            rolloutPercentage = request.rolloutPercentage,
-            regions = regionsString
+            rolloutPercentage = request.rolloutPercentage
         )
         val savedFeatureFlag = featureFlagRepository.save(updatedFeatureFlag)
 
@@ -142,41 +136,60 @@ class FeatureFlagService(
         val featureFlag = featureFlagRepository.findById(featureFlagId)
             .orElseThrow { ResourceNotFoundException("Feature flag not found with id: $featureFlagId") }
 
-        // Validate all workspaces exist
-        val workspaces = workspaceRepository.findAllById(request.workspaceIds)
-        if (workspaces.size != request.workspaceIds.size) {
-            throw ResourceNotFoundException("One or more workspaces not found")
-        }
-
         // Get count of enabled workspaces BEFORE the change
         val allAssociationsBefore = workspaceFeatureFlagRepository.findByFeatureFlag(featureFlag)
         val oldEnabledCount = allAssociationsBefore.count { it.isEnabled }
 
-        // Find existing associations for these workspaces
-        val existingAssociations = workspaceFeatureFlagRepository
-            .findByFeatureFlagIdAndWorkspaceIdIn(featureFlagId, request.workspaceIds)
+        var newEnabledCount = oldEnabledCount
 
-        if (existingAssociations.isEmpty()) {
-            throw IllegalArgumentException("No workspace-feature flag associations found for the specified workspaces")
+        // Only update workspaces if workspace IDs are provided
+        if (request.workspaceIds.isNotEmpty()) {
+            // Validate all workspaces exist
+            val workspaces = workspaceRepository.findAllById(request.workspaceIds)
+            if (workspaces.size != request.workspaceIds.size) {
+                throw ResourceNotFoundException("One or more workspaces not found")
+            }
+
+            // Find existing associations for these workspaces
+            val existingAssociations = workspaceFeatureFlagRepository
+                .findByFeatureFlagIdAndWorkspaceIdIn(featureFlagId, request.workspaceIds)
+
+            if (existingAssociations.isEmpty()) {
+                throw IllegalArgumentException("No workspace-feature flag associations found for the specified workspaces")
+            }
+
+            // Update enabled status for all specified workspaces
+            existingAssociations.forEach { association ->
+                association.isEnabled = request.enabled
+                association.updatedAt = LocalDateTime.now()
+            }
+
+            workspaceFeatureFlagRepository.saveAll(existingAssociations)
+
+            // Get count of enabled workspaces AFTER the change
+            val allAssociationsAfter = workspaceFeatureFlagRepository.findByFeatureFlag(featureFlag)
+            newEnabledCount = allAssociationsAfter.count { it.isEnabled }
         }
 
-        // Update enabled status for all specified workspaces
-        existingAssociations.forEach { association ->
-            association.isEnabled = request.enabled
-            association.updatedAt = LocalDateTime.now()
-        }
-
-        workspaceFeatureFlagRepository.saveAll(existingAssociations)
-
-        // Get count of enabled workspaces AFTER the change
-        val allAssociationsAfter = workspaceFeatureFlagRepository.findByFeatureFlag(featureFlag)
-        val newEnabledCount = allAssociationsAfter.count { it.isEnabled }
-
-        // Recalculate rollout percentage based on current enabled state
+        // Update rollout percentage
         val oldRolloutPercentage = featureFlag.rolloutPercentage
-        recalculateRolloutPercentage(featureFlag)
+        val newRolloutPercentage = if (request.rolloutPercentage != null) {
+            // Use the provided rollout percentage from the request
+            val updatedFlag = featureFlag.copy(
+                rolloutPercentage = request.rolloutPercentage,
+                updatedAt = LocalDateTime.now()
+            )
+            featureFlagRepository.save(updatedFlag)
+            request.rolloutPercentage
+        } else {
+            // Recalculate rollout percentage based on current enabled state
+            recalculateRolloutPercentage(featureFlag)
+            val reloadedFlag = featureFlagRepository.findById(featureFlagId)
+                .orElseThrow { ResourceNotFoundException("Feature flag not found with id: $featureFlagId") }
+            reloadedFlag.rolloutPercentage
+        }
 
-        // Reload the feature flag to get the updated rollout percentage
+        // Reload the feature flag to get the updated state
         val updatedFeatureFlag = featureFlagRepository.findById(featureFlagId)
             .orElseThrow { ResourceNotFoundException("Feature flag not found with id: $featureFlagId") }
 
@@ -185,25 +198,18 @@ class FeatureFlagService(
             oldEnabledCount = oldEnabledCount,
             newEnabledCount = newEnabledCount,
             oldRolloutPercentage = oldRolloutPercentage,
-            newRolloutPercentage = updatedFeatureFlag.rolloutPercentage,
+            newRolloutPercentage = newRolloutPercentage,
             featureFlag = updatedFeatureFlag
         )
     }
 
     /**
      * Recalculates the rollout percentage of a feature flag based on the current enabled state
-     * of all workspace associations in the target regions.
+     * of all workspace associations.
      */
     private fun recalculateRolloutPercentage(featureFlag: FeatureFlag) {
-        // Parse regions from string
-        val featureFlagRegions = featureFlag.regions.split(",").map { it.trim() }
-
-        // Get all workspaces in the feature flag's target regions
-        val targetWorkspaces = if (featureFlagRegions.contains("ALL")) {
-            workspaceRepository.findAll()
-        } else {
-            workspaceRepository.findByRegionIn(featureFlagRegions)
-        }
+        // Get all workspaces
+        val targetWorkspaces = workspaceRepository.findAll()
 
         if (targetWorkspaces.isEmpty()) {
             val updatedFlag = featureFlag.copy(
@@ -255,17 +261,8 @@ class FeatureFlagService(
         featureFlag: FeatureFlag,
         newPercentage: Int
     ) {
-        // Load all existing workspace-feature flag associations for this feature flag by region
-        val allWorkspaceFeatureFlags = workspaceFeatureFlagRepository.findByFeatureFlag(featureFlag)
-
-        // Parse the feature flag's regions
-        val featureFlagRegions = featureFlag.regions.split(",").map { it.trim() }.toSet()
-
-        // Filter workspaces to only include those whose region matches one of the feature flag's regions
-        val workspaceFeatureFlagsByRegion = allWorkspaceFeatureFlags.filter { workspaceFeatureFlag ->
-            val workspaceRegion = workspaceFeatureFlag.workspace.region?.toString()
-            workspaceRegion != null && featureFlagRegions.contains(workspaceRegion)
-        }
+        // Load all existing workspace-feature flag associations for this feature flag
+        val workspaceFeatureFlagsByRegion = workspaceFeatureFlagRepository.findByFeatureFlag(featureFlag)
 
         // Case 1: 0% rollout means disable all workspaces
         if (newPercentage == 0) {
@@ -343,7 +340,7 @@ class FeatureFlagService(
      * Get paginated workspaces that have this feature flag enabled
      */
     fun getEnabledWorkspacesForFeatureFlagPaginated(featureFlagId: UUID, page: Int = 0, size: Int = 100, searchTerm: String? = null): com.featureflag.dto.PageableResponse<com.featureflag.dto.WorkspaceDto> {
-        val featureFlag = featureFlagRepository.findById(featureFlagId)
+        featureFlagRepository.findById(featureFlagId)
             .orElseThrow { ResourceNotFoundException("Feature flag not found with id: $featureFlagId") }
 
         val pageable = org.springframework.data.domain.PageRequest.of(page, size, org.springframework.data.domain.Sort.by(org.springframework.data.domain.Sort.Direction.ASC, "workspace.name"))
@@ -357,6 +354,17 @@ class FeatureFlagService(
         return com.featureflag.dto.PageableResponse.of(workspaceDtoPage)
     }
 
+    /**
+     * Get count of enabled workspaces grouped by region for a feature flag
+     */
+    fun getWorkspaceCountsByRegion(featureFlagId: UUID): Map<String, Long> {
+        featureFlagRepository.findById(featureFlagId)
+            .orElseThrow { ResourceNotFoundException("Feature flag not found with id: $featureFlagId") }
+
+        val regionCounts = workspaceFeatureFlagRepository.countEnabledWorkspacesByRegion(featureFlagId)
+        return regionCounts.associate { it.getRegion() to it.getCount() }
+    }
+
     private fun FeatureFlag.toDto(): FeatureFlagDto {
         return FeatureFlagDto(
             id = this.id,
@@ -364,7 +372,6 @@ class FeatureFlagService(
             description = this.description,
             team = this.team,
             rolloutPercentage = this.rolloutPercentage,
-            regions = this.regions.split(",").map { it.trim() },
             createdAt = this.createdAt,
             updatedAt = this.updatedAt
         )

@@ -30,4 +30,13 @@ interface WorkspaceFeatureFlagRepository : JpaRepository<WorkspaceFeatureFlag, U
     // Search enabled workspaces by feature flag with name or region filter
     @Query("SELECT wff FROM WorkspaceFeatureFlag wff WHERE wff.featureFlag.id = :featureFlagId AND wff.isEnabled = true AND (LOWER(wff.workspace.name) LIKE LOWER(CONCAT('%', :searchTerm, '%')) OR LOWER(CAST(wff.workspace.region AS string)) LIKE LOWER(CONCAT('%', :searchTerm, '%')))")
     fun searchEnabledByFeatureFlagId(@Param("featureFlagId") featureFlagId: UUID, @Param("searchTerm") searchTerm: String, pageable: Pageable): Page<WorkspaceFeatureFlag>
+
+    // Count enabled workspaces by region for a feature flag
+    @Query("SELECT w.region as region, COUNT(w) as count FROM WorkspaceFeatureFlag wff JOIN wff.workspace w WHERE wff.featureFlag.id = :featureFlagId AND wff.isEnabled = true AND w.region IS NOT NULL GROUP BY w.region")
+    fun countEnabledWorkspacesByRegion(@Param("featureFlagId") featureFlagId: UUID): List<RegionCount>
+
+    interface RegionCount {
+        fun getRegion(): String
+        fun getCount(): Long
+    }
 }

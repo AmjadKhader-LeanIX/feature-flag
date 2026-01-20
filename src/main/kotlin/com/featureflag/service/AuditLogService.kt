@@ -20,8 +20,7 @@ class AuditLogService(
             "name" to featureFlag.name,
             "description" to featureFlag.description,
             "team" to featureFlag.team,
-            "rolloutPercentage" to featureFlag.rolloutPercentage,
-            "regions" to featureFlag.regions
+            "rolloutPercentage" to featureFlag.rolloutPercentage
         )
 
         val auditLog = FeatureFlagAuditLog(
@@ -69,8 +68,7 @@ class AuditLogService(
             "name" to featureFlag.name,
             "description" to featureFlag.description,
             "team" to featureFlag.team,
-            "rolloutPercentage" to featureFlag.rolloutPercentage,
-            "regions" to featureFlag.regions
+            "rolloutPercentage" to featureFlag.rolloutPercentage
         )
 
         val auditLog = FeatureFlagAuditLog(

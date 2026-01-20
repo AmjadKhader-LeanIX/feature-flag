@@ -16,6 +16,8 @@ const WorkspaceFeatureFlagComponent = {
         const selectedWorkspaceIds = ref([]);
         const searchTerm = ref('');
         const enabledAction = ref(true);
+        const rolloutPercentage = ref(0);
+        const initialRolloutPercentage = ref(0);
 
         // Pagination state
         const currentPage = ref(1);
@@ -44,28 +46,19 @@ const WorkspaceFeatureFlagComponent = {
 
         const selectedCount = computed(() => selectedWorkspaceIds.value.length);
 
+        const hasRolloutChanged = computed(() => rolloutPercentage.value !== initialRolloutPercentage.value);
+
         const hasPreviousPage = computed(() => currentPage.value > 1);
         const hasNextPage = computed(() => currentPage.value < totalPages.value);
 
         const loadWorkspaces = async () => {
             try {
                 loadingWorkspaces.value = true;
-                const allWorkspaces = await apiService.getWorkspaces();
-
-                // Filter workspaces to only include those in the feature flag's regions
-                const flagRegions = props.featureFlag.regions || [];
-
-                if (flagRegions.includes('ALL')) {
-                    // If flag targets ALL regions, show all workspaces
-                    workspaces.value = allWorkspaces;
-                } else {
-                    // Only show workspaces in matching regions
-                    workspaces.value = allWorkspaces.filter(workspace =>
-                        flagRegions.includes(workspace.region)
-                    );
-                }
+                const response = await apiService.getWorkspaces(0, 1000); // Load up to 1000 workspaces
+                workspaces.value = response.content || [];
             } catch (error) {
                 console.error('Failed to load workspaces:', error);
+                workspaces.value = [];
             } finally {
                 loadingWorkspaces.value = false;
             }
@@ -89,14 +82,15 @@ const WorkspaceFeatureFlagComponent = {
         };
 
         const handleSubmit = () => {
-            if (selectedWorkspaceIds.value.length === 0) {
-                alert('Please select at least one workspace');
+            if (selectedWorkspaceIds.value.length === 0 && !hasRolloutChanged.value) {
+                alert('Please select at least one workspace or change the rollout percentage');
                 return;
             }
 
             emit('submit', {
                 workspaceIds: selectedWorkspaceIds.value,
-                enabled: enabledAction.value
+                enabled: enabledAction.value,
+                rolloutPercentage: rolloutPercentage.value
             });
         };
 
@@ -130,6 +124,16 @@ const WorkspaceFeatureFlagComponent = {
         // Load workspaces when component is mounted (lazy loading when modal opens)
         onMounted(() => {
             loadWorkspaces();
+            rolloutPercentage.value = props.featureFlag.rolloutPercentage || 0;
+            initialRolloutPercentage.value = props.featureFlag.rolloutPercentage || 0;
+        });
+
+        // Watch for feature flag changes
+        watch(() => props.featureFlag, (newFlag) => {
+            if (newFlag) {
+                rolloutPercentage.value = newFlag.rolloutPercentage || 0;
+                initialRolloutPercentage.value = newFlag.rolloutPercentage || 0;
+            }
         });
 
         return {
@@ -138,9 +142,11 @@ const WorkspaceFeatureFlagComponent = {
             selectedWorkspaceIds,
             searchTerm,
             enabledAction,
+            rolloutPercentage,
             filteredWorkspaces,
             paginatedWorkspaces,
             selectedCount,
+            hasRolloutChanged,
             currentPage,
             totalPages,
             pageSize,
@@ -165,10 +171,7 @@ const WorkspaceFeatureFlagComponent = {
                     <p>{{ featureFlag.description || 'No description' }}</p>
                     <div class="flag-meta">
                         <span class="badge badge-info">{{ featureFlag.team }}</span>
-                        <span class="badge badge-secondary">{{ featureFlag.rolloutPercentage }}% Rollout</span>
-                        <span v-for="region in featureFlag.regions" :key="region" class="badge badge-warning">
-                            {{ region }}
-                        </span>
+                        <span class="badge badge-secondary">Current Rollout: {{ featureFlag.rolloutPercentage }}%</span>
                     </div>
                 </div>
             </div>
@@ -187,6 +190,24 @@ const WorkspaceFeatureFlagComponent = {
                         <span>Disable for selected workspaces</span>
                     </label>
                 </div>
+            </div>
+
+            <div class="form-section">
+                <label class="form-label" for="rollout-slider">Rollout Percentage</label>
+                <div class="range-input">
+                    <input
+                        id="rollout-slider"
+                        v-model.number="rolloutPercentage"
+                        type="range"
+                        min="0"
+                        max="100"
+                        :disabled="loading"
+                    />
+                    <span class="rollout-display">{{ rolloutPercentage }}%</span>
+                </div>
+                <small style="color: var(--text-secondary); font-size: var(--text-xs); margin-top: var(--spacing-2); display: block;">
+                    Adjust the rollout percentage to control how many workspaces will have this flag enabled
+                </small>
             </div>
 
             <div class="form-section">
@@ -287,9 +308,9 @@ const WorkspaceFeatureFlagComponent = {
                 <button type="button" class="btn btn-secondary" @click="handleCancel" :disabled="loading">
                     Cancel
                 </button>
-                <button type="button" class="btn btn-primary" @click="handleSubmit" :disabled="loading || selectedCount === 0">
+                <button type="button" class="btn btn-primary" @click="handleSubmit" :disabled="loading || (selectedCount === 0 && !hasRolloutChanged)">
                     <i class="fas fa-save"></i>
-                    {{ loading ? 'Saving...' : enabledAction ? 'Enable for Selected' : 'Disable for Selected' }}
+                    {{ loading ? 'Saving...' : 'Save' }}
                 </button>
             </div>
         </div>

@@ -79,4 +79,9 @@ const apiService = {
     getEnabledFeatureFlagsForWorkspace(workspaceId) {
         return this.request(`/workspaces/${workspaceId}/enabled-feature-flags`);
     },
+
+    // Get workspace counts by region for a feature flag
+    getWorkspaceCountsByRegion(featureFlagId) {
+        return this.request(`/feature-flags/${featureFlagId}/workspace-counts-by-region`);
+    },
 };

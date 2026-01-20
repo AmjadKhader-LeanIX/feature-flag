@@ -94,4 +94,10 @@ class FeatureFlagController(
             ResponseEntity.ok(workspaces)
         }
     }
+
+    @GetMapping("/{id}/workspace-counts-by-region")
+    fun getWorkspaceCountsByRegion(@PathVariable id: UUID): ResponseEntity<Map<String, Long>> {
+        val counts = featureFlagService.getWorkspaceCountsByRegion(id)
+        return ResponseEntity.ok(counts)
+    }
 }

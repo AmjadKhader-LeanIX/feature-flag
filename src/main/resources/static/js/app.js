@@ -43,6 +43,7 @@ const App = {
         const hasMoreWorkspaces = ref(true);
         const isLoadingMoreWorkspaces = ref(false);
         const totalWorkspacesCount = ref(0);
+        const regionCountsByFlag = ref({}); // Store region counts for each feature flag
 
         const searchTerms = reactive({
             featureFlag: '',
@@ -165,10 +166,39 @@ const App = {
             try {
                 loading.featureFlags = true;
                 featureFlags.value = await apiService.getFeatureFlags();
+
+                // Load region counts for all feature flags
+                await loadRegionCounts();
             } catch (error) {
                 showToast(error.message, 'error');
             } finally {
                 loading.featureFlags = false;
+            }
+        };
+
+        const loadRegionCounts = async () => {
+            try {
+                // Load region counts for all feature flags in parallel
+                const countsPromises = featureFlags.value.map(async (flag) => {
+                    try {
+                        const counts = await apiService.getWorkspaceCountsByRegion(flag.id);
+                        return { flagId: flag.id, counts };
+                    } catch (error) {
+                        console.error(`Failed to load region counts for flag ${flag.id}:`, error);
+                        return { flagId: flag.id, counts: {} };
+                    }
+                });
+
+                const results = await Promise.all(countsPromises);
+
+                // Update the regionCountsByFlag ref
+                const newRegionCounts = {};
+                results.forEach(result => {
+                    newRegionCounts[result.flagId] = result.counts;
+                });
+                regionCountsByFlag.value = newRegionCounts;
+            } catch (error) {
+                console.error('Failed to load region counts:', error);
             }
         };
 
@@ -341,7 +371,18 @@ const App = {
             try {
                 formLoading.value = true;
                 await apiService.updateWorkspaceFeatureFlags(editingItems.workspaceFeatureFlag.id, data);
-                showToast(`Feature flag ${data.enabled ? 'enabled' : 'disabled'} for ${data.workspaceIds.length} workspace(s)`, 'success');
+
+                let message = '';
+                if (data.workspaceIds.length > 0) {
+                    message = `Feature flag ${data.enabled ? 'enabled' : 'disabled'} for ${data.workspaceIds.length} workspace(s)`;
+                    if (data.rolloutPercentage !== undefined) {
+                        message += ` and rollout updated to ${data.rolloutPercentage}%`;
+                    }
+                } else if (data.rolloutPercentage !== undefined) {
+                    message = `Rollout percentage updated to ${data.rolloutPercentage}%`;
+                }
+
+                showToast(message, 'success');
                 modals.workspaceFeatureFlag = false;
                 await loadFeatureFlags();
             } catch (error) {
@@ -429,22 +470,8 @@ const App = {
 
         // Calculate workspace counts per region for a feature flag
         const getWorkspaceCountsByRegion = (flagId) => {
-            const regionCounts = {};
-
-            // Go through all loaded workspaces with flags
-            workspacesWithFlags.value.forEach(item => {
-                const workspace = item.workspace;
-                const enabledFlags = item.enabledFlags || [];
-
-                // Check if this workspace has the flag enabled
-                const hasFlagEnabled = enabledFlags.some(flag => flag.id === flagId);
-
-                if (hasFlagEnabled && workspace.region) {
-                    regionCounts[workspace.region] = (regionCounts[workspace.region] || 0) + 1;
-                }
-            });
-
-            return regionCounts;
+            // Return the counts from the API data stored in regionCountsByFlag
+            return regionCountsByFlag.value[flagId] || {};
         };
 
         watch(() => filters.auditFlagId, () => {
@@ -456,6 +483,13 @@ const App = {
         watch(() => filters.auditOperation, () => {
             if (currentTab.value === 'audit-logs') {
                 loadAuditLogs();
+            }
+        });
+
+        // Refresh region counts when switching to feature flags tab
+        watch(currentTab, (newTab) => {
+            if (newTab === 'feature-flags') {
+                loadRegionCounts();
             }
         });
 
@@ -860,15 +894,14 @@ const App = {
                                         </div>
 
                                         <!-- Enabled Workspaces by Region -->
-                                        <div v-if="Object.keys(getWorkspaceCountsByRegion(flag.id)).length > 0"
-                                             style="margin-top: var(--spacing-4); padding: var(--spacing-3); background: var(--gray-50); border-radius: var(--radius-lg); border: 1px solid var(--gray-200);">
+                                        <div style="margin-top: var(--spacing-4); padding: var(--spacing-3); background: var(--gray-50); border-radius: var(--radius-lg); border: 1px solid var(--gray-200);">
                                             <div style="display: flex; align-items: center; gap: var(--spacing-2); margin-bottom: var(--spacing-2);">
                                                 <i class="fas fa-building" style="color: var(--primary-600);"></i>
                                                 <span style="font-weight: var(--font-semibold); font-size: var(--text-sm); color: var(--text-primary);">
                                                     Enabled Workspaces by Region
                                                 </span>
                                             </div>
-                                            <div style="display: flex; flex-wrap: wrap; gap: var(--spacing-2);">
+                                            <div v-if="Object.keys(getWorkspaceCountsByRegion(flag.id)).length > 0" style="display: flex; flex-wrap: wrap; gap: var(--spacing-2);">
                                                 <div v-for="(count, region) in getWorkspaceCountsByRegion(flag.id)"
                                                      :key="region"
                                                      style="display: flex; align-items: center; gap: var(--spacing-2); padding: 6px 12px; background: white; border: 1px solid var(--gray-300); border-radius: var(--radius-md); box-shadow: var(--shadow-xs);">
@@ -884,16 +917,14 @@ const App = {
                                                     </span>
                                                 </div>
                                             </div>
+                                            <div v-else style="color: var(--text-secondary); font-size: var(--text-sm); text-align: center; padding: var(--spacing-2);">
+                                                <i class="fas fa-info-circle"></i>
+                                                No workspaces enabled yet
+                                            </div>
                                         </div>
 
                                         <!-- Action Buttons -->
                                         <div class="grid-actions" style="margin-top: var(--spacing-4);">
-                                            <button class="btn btn-sm btn-secondary hover-lift"
-                                                    @click="editFeatureFlag(flag)"
-                                                    title="Edit rollout percentage, regions, and other settings">
-                                                <i class="fas fa-percentage"></i>
-                                                Edit Settings
-                                            </button>
                                             <button class="btn btn-sm btn-info hover-lift"
                                                     @click="editWorkspaces(flag)"
                                                     title="Enable/disable this flag for specific workspaces">
@@ -1252,10 +1283,6 @@ const App = {
                                 <div v-if="isLoadingMoreEnabledWorkspaces" class="loading-more" style="text-align: center; padding: 24px;">
                                     <div class="loading-spinner" style="display: inline-block; width: 30px; height: 30px; border: 3px solid var(--gray-200); border-top: 3px solid var(--primary-500); border-radius: 50%; animation: spin 1s linear infinite;"></div>
                                     <p style="margin-top: 12px; color: var(--text-secondary);">Loading more workspaces...</p>
-                                </div>
-
-                                <div v-if="!hasMoreEnabledWorkspaces && enabledWorkspaces.length > 0" style="text-align: center; padding: 24px; color: var(--text-secondary);">
-                                    <i class="fas fa-check-circle"></i> All enabled workspaces loaded
                                 </div>
                             </div>
                         </div>

@@ -29,9 +29,6 @@ data class FeatureFlag(
     @Max(100)
     val rolloutPercentage: Int,
 
-    @Column(name = "regions", nullable = false)
-    val regions: String = "ALL",
-
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
     val createdAt: LocalDateTime? = null,

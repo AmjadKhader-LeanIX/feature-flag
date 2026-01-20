@@ -70,7 +70,6 @@ class WorkspaceService(
             description = this.description,
             team = this.team,
             rolloutPercentage = this.rolloutPercentage,
-            regions = this.regions.split(",").map { it.trim() },
             createdAt = this.createdAt,
             updatedAt = this.updatedAt
         )
