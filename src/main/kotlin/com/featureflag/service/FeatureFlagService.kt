@@ -4,8 +4,10 @@ import com.featureflag.dto.CreateFeatureFlagRequest
 import com.featureflag.dto.FeatureFlagDto
 import com.featureflag.dto.UpdateFeatureFlagRequest
 import com.featureflag.dto.UpdateWorkspaceFeatureFlagRequest
+import com.featureflag.dto.WorkspaceDto
 import com.featureflag.entity.FeatureFlag
 import com.featureflag.entity.Region
+import com.featureflag.entity.Workspace
 import com.featureflag.entity.WorkspaceFeatureFlag
 import com.featureflag.exception.ResourceNotFoundException
 import com.featureflag.repository.FeatureFlagRepository
@@ -93,9 +95,6 @@ class FeatureFlagService(
         }
 
         val updatedFeatureFlag = featureFlag.copy(
-            name = request.name,
-            description = request.description,
-            team = request.team,
             rolloutPercentage = request.rolloutPercentage
         )
         val savedFeatureFlag = featureFlagRepository.save(updatedFeatureFlag)
@@ -139,10 +138,18 @@ class FeatureFlagService(
             .orElseThrow { ResourceNotFoundException("Feature flag not found with id: $featureFlagId") }
 
         // Get count of enabled workspaces BEFORE the change
-        val allAssociationsBefore = workspaceFeatureFlagRepository.findByFeatureFlag(featureFlag)
-        val oldEnabledCount = allAssociationsBefore.count { it.isEnabled }
+        val oldEnabledCount = workspaceFeatureFlagRepository.countEnabledByFeatureFlag(featureFlag).toInt()
 
-        var newEnabledCount = oldEnabledCount
+        // Get currently enabled workspaces to maintain additivity
+        val currentlyEnabledAssociations = workspaceFeatureFlagRepository.findByFeatureFlag(featureFlag)
+            .filter { it.isEnabled }
+        val currentlyEnabledWorkspaceIds = currentlyEnabledAssociations.map { it.workspace.id!! }.toMutableList()
+
+        // Merge new workspace IDs with currently enabled ones (additive behavior)
+        val allPriorityWorkspaceIds = (currentlyEnabledWorkspaceIds + request.workspaceIds).distinct().toMutableList()
+
+        // Remove excluded workspaces from priority list
+        allPriorityWorkspaceIds.removeAll(request.excludedWorkspaceIds)
 
         // Only update workspaces if workspace IDs are provided
         if (request.workspaceIds.isNotEmpty()) {
@@ -164,24 +171,20 @@ class FeatureFlagService(
             existingAssociations.forEach { association ->
                 association.isEnabled = request.enabled
                 association.updatedAt = LocalDateTime.now()
+
+                workspaceFeatureFlagRepository.save(association)
             }
-
-            workspaceFeatureFlagRepository.saveAll(existingAssociations)
-
-            // Get count of enabled workspaces AFTER the change
-            val allAssociationsAfter = workspaceFeatureFlagRepository.findByFeatureFlag(featureFlag)
-            newEnabledCount = allAssociationsAfter.count { it.isEnabled }
         }
 
         // Update rollout percentage
         val oldRolloutPercentage = featureFlag.rolloutPercentage
-        val newRolloutPercentage = if (request.rolloutPercentage != null) {
+        val newRolloutPercentage = if (request.rolloutPercentage != oldRolloutPercentage) {
             // If targetRegion is specified, apply rollout to that region only
             if (request.targetRegion != null) {
-                applyRegionSpecificRolloutWithPriority(featureFlag, request.rolloutPercentage, request.targetRegion, request.workspaceIds, request.excludedWorkspaceIds)
+                applyRegionSpecificRolloutWithPriority(featureFlag, request.rolloutPercentage!!, request.targetRegion, allPriorityWorkspaceIds, request.excludedWorkspaceIds)
             } else {
-                // Apply rollout globally with priority for manually picked workspaces
-                updateFeatureFlagRolloutWithPriority(featureFlag, request.rolloutPercentage, request.workspaceIds, request.excludedWorkspaceIds)
+                // Apply rollout globally with priority for manually picked workspaces (includes all previously enabled)
+                updateFeatureFlagRolloutWithPriority(featureFlag, request.rolloutPercentage!!, allPriorityWorkspaceIds, request.excludedWorkspaceIds)
             }
 
             // Recalculate the overall rollout percentage based on what's actually enabled
@@ -214,9 +217,10 @@ class FeatureFlagService(
             emptyList()
         }
 
+        val newEnabledCount = workspaceFeatureFlagRepository.countEnabledByFeatureFlag(featureFlag).toInt()
+
         // Log the workspace update with old and new enabled counts
         auditLogService.logWorkspaceUpdate(
-            featureFlagId = featureFlagId,
             oldEnabledCount = oldEnabledCount,
             newEnabledCount = newEnabledCount,
             oldRolloutPercentage = oldRolloutPercentage,
@@ -559,15 +563,6 @@ class FeatureFlagService(
 
         val workspacesToUpdate = mutableListOf<WorkspaceFeatureFlag>()
 
-        // Always disable excluded workspaces in the target region (highest priority)
-        excludedWorkspacesInRegion.forEach { wff ->
-            if (wff.isEnabled) {
-                wff.isEnabled = false
-                wff.updatedAt = LocalDateTime.now()
-                workspacesToUpdate.add(wff)
-            }
-        }
-
         // Always enable priority workspaces in the target region (unless excluded)
         priorityWorkspacesInRegion.forEach { wff ->
             if (!wff.isEnabled) {
@@ -612,6 +607,15 @@ class FeatureFlagService(
                     workspacesToUpdate.add(wff)
                 }
             }
+
+            // Always disable excluded workspaces in the target region (highest priority)
+            excludedWorkspacesInRegion.forEach { wff ->
+                if (wff.isEnabled) {
+                    wff.isEnabled = false
+                    wff.updatedAt = LocalDateTime.now()
+                    workspacesToUpdate.add(wff)
+                }
+            }
         }
 
         if (workspacesToUpdate.isNotEmpty()) {
@@ -645,7 +649,7 @@ class FeatureFlagService(
         } else {
             workspaceFeatureFlagRepository.searchEnabledByFeatureFlagId(featureFlagId, searchTerm, pageable)
         }
-        val workspaceDtoPage = workspaceFlagPage.map { it.workspace.toDto() }
+        val workspaceDtoPage = workspaceFlagPage.map { wff -> wff.workspace.toDto() }
 
         return com.featureflag.dto.PageableResponse.of(workspaceDtoPage)
     }
@@ -673,7 +677,7 @@ class FeatureFlagService(
         )
     }
 
-    private fun com.featureflag.entity.Workspace.toDto(): com.featureflag.dto.WorkspaceDto {
+    private fun Workspace.toDto(): WorkspaceDto {
         return com.featureflag.dto.WorkspaceDto(
             id = this.id,
             name = this.name,

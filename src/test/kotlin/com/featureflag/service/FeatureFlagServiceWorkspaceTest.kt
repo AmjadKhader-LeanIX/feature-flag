@@ -102,7 +102,7 @@ class FeatureFlagServiceWorkspaceTest {
         every { workspaceRepository.findByRegionIn(listOf("WESTEUROPE")) } returns listOf(workspace1, workspace2)
         every { workspaceFeatureFlagRepository.saveAll(any<List<WorkspaceFeatureFlag>>()) } returns listOf()
         every { featureFlagRepository.save(any()) } returns featureFlag
-        every { auditLogService.logWorkspaceUpdate(any(), any(), any(), any(), any()) } just Runs
+        every { auditLogService.logWorkspaceUpdate(any(), any(), any(), any()) } just Runs
 
         // When
         featureFlagService.updateWorkspaceFeatureFlags(featureFlagId, request)
@@ -160,7 +160,7 @@ class FeatureFlagServiceWorkspaceTest {
         every { workspaceRepository.findByRegionIn(listOf("WESTEUROPE")) } returns listOf(workspace)
         every { workspaceFeatureFlagRepository.saveAll(any<List<WorkspaceFeatureFlag>>()) } returns listOf()
         every { featureFlagRepository.save(any()) } returns featureFlag
-        every { auditLogService.logWorkspaceUpdate(any(), any(), any(), any(), any()) } just Runs
+        every { auditLogService.logWorkspaceUpdate(any(), any(), any(), any()) } just Runs
 
         // When
         featureFlagService.updateWorkspaceFeatureFlags(featureFlagId, request)
@@ -336,7 +336,7 @@ class FeatureFlagServiceWorkspaceTest {
         every { workspaceRepository.findByRegionIn(listOf("WESTEUROPE")) } returns listOf(workspace1, workspace2)
         every { workspaceFeatureFlagRepository.saveAll(any<List<WorkspaceFeatureFlag>>()) } returns listOf()
         every { featureFlagRepository.save(any()) } returns featureFlag
-        every { auditLogService.logWorkspaceUpdate(any(), any(), any(), any(), any()) } just Runs
+        every { auditLogService.logWorkspaceUpdate(any(), any(), any(), any()) } just Runs
 
         // When
         featureFlagService.updateWorkspaceFeatureFlags(featureFlagId, request)

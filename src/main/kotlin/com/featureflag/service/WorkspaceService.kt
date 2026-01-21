@@ -52,6 +52,31 @@ class WorkspaceService(
         return enabledAssociations.map { it.featureFlag.toDto() }
     }
 
+    fun getEnabledFeatureFlagsForWorkspacePaginated(
+        workspaceId: UUID,
+        page: Int,
+        size: Int,
+        searchTerm: String?
+    ): PageableResponse<com.featureflag.dto.FeatureFlagDto> {
+        val workspace = workspaceRepository.findById(workspaceId)
+            .orElseThrow { ResourceNotFoundException("Workspace not found with id: $workspaceId") }
+
+        val pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.ASC, "featureFlag.name"))
+
+        val associationsPage = if (searchTerm.isNullOrBlank()) {
+            workspaceFeatureFlagRepository.findEnabledByWorkspaceIdWithFeatureFlagPaginated(workspace.id!!, pageable)
+        } else {
+            workspaceFeatureFlagRepository.findEnabledByWorkspaceIdWithFeatureFlagAndSearch(
+                workspace.id!!,
+                searchTerm,
+                pageable
+            )
+        }
+
+        val dtoPage = associationsPage.map { it.featureFlag.toDto() }
+        return PageableResponse.of(dtoPage)
+    }
+
     private fun Workspace.toDto(): WorkspaceDto {
         return WorkspaceDto(
             id = this.id,

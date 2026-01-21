@@ -17,21 +17,31 @@ class AuditLogController(
     fun getAllAuditLogs(
         @RequestParam(required = false) featureFlagId: UUID?,
         @RequestParam(required = false) team: String?,
-        @RequestParam(required = false) operation: AuditOperation?
-    ): ResponseEntity<List<AuditLogDto>> {
-        val auditLogs = when {
-            featureFlagId != null && operation != null ->
-                auditLogService.getAuditLogsByFeatureFlagIdAndOperation(featureFlagId, operation)
-            featureFlagId != null ->
-                auditLogService.getAuditLogsByFeatureFlagId(featureFlagId)
-            team != null ->
-                auditLogService.getAuditLogsByTeam(team)
-            operation != null ->
-                auditLogService.getAuditLogsByOperation(operation)
-            else ->
-                auditLogService.getAllAuditLogs()
+        @RequestParam(required = false) operation: AuditOperation?,
+        @RequestParam(defaultValue = "0") page: Int,
+        @RequestParam(defaultValue = "100") size: Int,
+        @RequestParam(defaultValue = "false") paginated: Boolean,
+        @RequestParam(required = false) search: String?
+    ): ResponseEntity<*> {
+        return if (paginated) {
+            val paginatedAuditLogs = auditLogService.getAllAuditLogsPaginated(page, size, search)
+            ResponseEntity.ok(paginatedAuditLogs)
+        } else {
+            // Backward compatibility
+            val auditLogs = when {
+                featureFlagId != null && operation != null ->
+                    auditLogService.getAuditLogsByFeatureFlagIdAndOperation(featureFlagId, operation)
+                featureFlagId != null ->
+                    auditLogService.getAuditLogsByFeatureFlagId(featureFlagId)
+                team != null ->
+                    auditLogService.getAuditLogsByTeam(team)
+                operation != null ->
+                    auditLogService.getAuditLogsByOperation(operation)
+                else ->
+                    auditLogService.getAllAuditLogs()
+            }
+            ResponseEntity.ok(auditLogs)
         }
-        return ResponseEntity.ok(auditLogs)
     }
 
     @GetMapping("/feature-flag/{featureFlagId}")

@@ -6,6 +6,9 @@ import com.featureflag.entity.AuditOperation
 import com.featureflag.entity.FeatureFlag
 import com.featureflag.entity.FeatureFlagAuditLog
 import com.featureflag.repository.FeatureFlagAuditLogRepository
+import org.springframework.data.domain.Page
+import org.springframework.data.domain.PageRequest
+import org.springframework.data.domain.Sort
 import org.springframework.stereotype.Service
 import java.util.*
 
@@ -88,6 +91,22 @@ class AuditLogService(
         return auditLogRepository.findAllByOrderByTimestampDesc().map { it.toDto() }
     }
 
+    fun getAllAuditLogsPaginated(page: Int, size: Int, search: String?): Page<AuditLogDto> {
+        val pageRequest = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "timestamp"))
+
+        val auditLogs = if (search.isNullOrBlank()) {
+            auditLogRepository.findAll(pageRequest)
+        } else {
+            auditLogRepository.findByFeatureFlagNameContainingIgnoreCaseOrTeamContainingIgnoreCase(
+                search,
+                search,
+                pageRequest
+            )
+        }
+
+        return auditLogs.map { it.toDto() }
+    }
+
     fun getAuditLogsByFeatureFlagId(featureFlagId: UUID): List<AuditLogDto> {
         return auditLogRepository.findByFeatureFlagIdOrderByTimestampDesc(featureFlagId).map { it.toDto() }
     }
@@ -106,7 +125,6 @@ class AuditLogService(
     }
 
     fun logWorkspaceUpdate(
-        featureFlagId: UUID?,
         oldEnabledCount: Int,
         newEnabledCount: Int,
         oldRolloutPercentage: Int,
@@ -117,61 +135,10 @@ class AuditLogService(
         targetRegion: String? = null,
         changedBy: String? = "system"
     ) {
-        // Get previous pinned/excluded workspaces from the last audit log entry
-        var oldPinnedWorkspaces: List<String> = emptyList()
-        var oldExcludedWorkspaces: List<String> = emptyList()
-        var oldTargetRegion: String? = null
-
-        if (featureFlagId != null) {
-            val lastAuditLog = auditLogRepository.findByFeatureFlagIdOrderByTimestampDesc(featureFlagId)
-                .firstOrNull()
-
-            if (lastAuditLog != null && lastAuditLog.newValues != null) {
-                try {
-                    val previousNewValues = objectMapper.readValue(
-                        lastAuditLog.newValues,
-                        object : com.fasterxml.jackson.core.type.TypeReference<Map<String, Any?>>() {}
-                    )
-
-                    // Extract old pinned workspaces
-                    oldPinnedWorkspaces = when (val pinned = previousNewValues["Manually Enabled Workspaces"]) {
-                        is List<*> -> pinned.filterIsInstance<String>()
-                        else -> emptyList()
-                    }
-
-                    // Extract old excluded workspaces
-                    oldExcludedWorkspaces = when (val excluded = previousNewValues["Manually Disabled Workspaces"]) {
-                        is List<*> -> excluded.filterIsInstance<String>()
-                        else -> emptyList()
-                    }
-
-                    // Extract old target region
-                    oldTargetRegion = previousNewValues["Region"] as? String
-                } catch (e: Exception) {
-                    // If we can't parse the previous values, just continue with empty lists
-                }
-            }
-        }
-
         val oldValuesMap: MutableMap<String, Any> = mutableMapOf(
             "Enabled Workspaces" to oldEnabledCount,
             "Rollout Percentage" to oldRolloutPercentage
         )
-
-        // Add old pinned workspaces if any existed
-        if (oldPinnedWorkspaces.isNotEmpty()) {
-            oldValuesMap["Manually Enabled Workspaces"] = oldPinnedWorkspaces
-        }
-
-        // Add old excluded workspaces if any existed
-        if (oldExcludedWorkspaces.isNotEmpty()) {
-            oldValuesMap["Manually Disabled Workspaces"] = oldExcludedWorkspaces
-        }
-
-        // Add old target region if it existed
-        if (oldTargetRegion != null) {
-            oldValuesMap["Region"] = oldTargetRegion
-        }
 
         val newValuesMap: MutableMap<String, Any> = mutableMapOf(
             "Enabled Workspaces" to newEnabledCount,

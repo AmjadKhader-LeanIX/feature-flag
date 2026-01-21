@@ -20,8 +20,18 @@ interface WorkspaceFeatureFlagRepository : JpaRepository<WorkspaceFeatureFlag, U
     @Query("SELECT wff FROM WorkspaceFeatureFlag wff JOIN FETCH wff.featureFlag JOIN FETCH wff.workspace w WHERE w.id = :workspaceId AND wff.isEnabled = true")
     fun findEnabledByWorkspaceIdWithFeatureFlag(workspaceId: UUID): List<WorkspaceFeatureFlag>
 
+    @Query("SELECT wff FROM WorkspaceFeatureFlag wff WHERE wff.workspace.id = :workspaceId AND wff.isEnabled = true")
+    fun findEnabledByWorkspaceIdWithFeatureFlagPaginated(@Param("workspaceId") workspaceId: UUID, pageable: Pageable): Page<WorkspaceFeatureFlag>
+
+    @Query("SELECT wff FROM WorkspaceFeatureFlag wff WHERE wff.workspace.id = :workspaceId AND wff.isEnabled = true AND (LOWER(wff.featureFlag.name) LIKE LOWER(CONCAT('%', :searchTerm, '%')) OR LOWER(wff.featureFlag.description) LIKE LOWER(CONCAT('%', :searchTerm, '%')) OR LOWER(wff.featureFlag.team) LIKE LOWER(CONCAT('%', :searchTerm, '%')))")
+    fun findEnabledByWorkspaceIdWithFeatureFlagAndSearch(@Param("workspaceId") workspaceId: UUID, @Param("searchTerm") searchTerm: String, pageable: Pageable): Page<WorkspaceFeatureFlag>
+
     fun findByFeatureFlag(featureFlag: FeatureFlag): List<WorkspaceFeatureFlag>
     fun findByFeatureFlagIdAndWorkspaceIdIn(featureFlagId: UUID, workspaceIds: List<UUID>): List<WorkspaceFeatureFlag>
+
+    // Count enabled workspaces for a feature flag
+    @Query("SELECT COUNT(wff) FROM WorkspaceFeatureFlag wff WHERE wff.featureFlag = :featureFlag AND wff.isEnabled = true")
+    fun countEnabledByFeatureFlag(@Param("featureFlag") featureFlag: FeatureFlag): Long
 
     // Paginated query for enabled workspaces by feature flag
     @Query("SELECT wff FROM WorkspaceFeatureFlag wff WHERE wff.featureFlag.id = :featureFlagId AND wff.isEnabled = true")
