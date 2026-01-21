@@ -23,12 +23,10 @@ const DataVisualizationCharts = {
         const { ref, computed, watch, onMounted, nextTick } = Vue;
 
         const rolloutChart = ref(null);
-        const regionalChart = ref(null);
         const teamChart = ref(null);
         const activityChart = ref(null);
 
         const rolloutChartInstance = ref(null);
-        const regionalChartInstance = ref(null);
         const teamChartInstance = ref(null);
         const activityChartInstance = ref(null);
 
@@ -52,21 +50,6 @@ const DataVisualizationCharts = {
             });
 
             return buckets;
-        });
-
-        // Compute regional distribution data
-        const regionalDistribution = computed(() => {
-            const regionCounts = {};
-
-            props.featureFlags.forEach(flag => {
-                if (flag.regions && Array.isArray(flag.regions)) {
-                    flag.regions.forEach(region => {
-                        regionCounts[region] = (regionCounts[region] || 0) + 1;
-                    });
-                }
-            });
-
-            return regionCounts;
         });
 
         // Compute team performance data
@@ -196,98 +179,6 @@ const DataVisualizationCharts = {
             }
             rolloutChartInstance.value = new ApexCharts(rolloutChart.value, options);
             rolloutChartInstance.value.render();
-        };
-
-        // Initialize Regional Distribution Chart (Bar)
-        const initRegionalChart = () => {
-            if (!regionalChart.value || typeof ApexCharts === 'undefined') return;
-
-            const distribution = regionalDistribution.value;
-            const categories = Object.keys(distribution);
-            const series = Object.values(distribution);
-
-            const options = {
-                series: [{
-                    name: 'Feature Flags',
-                    data: series
-                }],
-                chart: {
-                    type: 'bar',
-                    height: 350,
-                    fontFamily: 'Inter, sans-serif',
-                    toolbar: {
-                        show: true
-                    }
-                },
-                plotOptions: {
-                    bar: {
-                        horizontal: false,
-                        columnWidth: '60%',
-                        borderRadius: 8,
-                        dataLabels: {
-                            position: 'top'
-                        }
-                    }
-                },
-                dataLabels: {
-                    enabled: true,
-                    offsetY: -20,
-                    style: {
-                        fontSize: '12px',
-                        fontWeight: 600,
-                        colors: ['#223548']
-                    }
-                },
-                xaxis: {
-                    categories: categories,
-                    labels: {
-                        style: {
-                            fontSize: '12px',
-                            fontWeight: 500
-                        }
-                    }
-                },
-                yaxis: {
-                    title: {
-                        text: 'Number of Flags',
-                        style: {
-                            fontSize: '14px',
-                            fontWeight: 600
-                        }
-                    },
-                    labels: {
-                        formatter: function(val) {
-                            return Math.floor(val);
-                        }
-                    }
-                },
-                colors: ['#002a86'],
-                fill: {
-                    type: 'gradient',
-                    gradient: {
-                        shade: 'light',
-                        type: 'vertical',
-                        shadeIntensity: 0.5,
-                        gradientToColors: ['#1f5ba3'],
-                        opacityFrom: 1,
-                        opacityTo: 0.9,
-                        stops: [0, 100]
-                    }
-                },
-                tooltip: {
-                    y: {
-                        formatter: function(val) {
-                            return val + ' flags';
-                        }
-                    }
-                }
-            };
-
-            if (regionalChartInstance.value) {
-                regionalChartInstance.value.destroy();
-            }
-            regionalChartInstance.value = new ApexCharts(regionalChart.value, options);
-            regionalChartInstance.value.render();
         };
 
         // Initialize Team Performance Chart (Grouped Bar)
@@ -482,7 +373,6 @@ const DataVisualizationCharts = {
         const initializeCharts = async () => {
             await nextTick();
             initRolloutChart();
-            initRegionalChart();
             initTeamChart();
             initActivityChart();
         };
@@ -491,7 +381,6 @@ const DataVisualizationCharts = {
         watch(() => props.featureFlags, () => {
             nextTick(() => {
                 initRolloutChart();
-                initRegionalChart();
                 initTeamChart();
             });
         }, { deep: true });
@@ -508,7 +397,6 @@ const DataVisualizationCharts = {
 
         return {
             rolloutChart,
-            regionalChart,
             teamChart,
             activityChart
         };
@@ -522,16 +410,6 @@ const DataVisualizationCharts = {
                 </div>
                 <div class="chart-container">
                     <div ref="rolloutChart"></div>
-                </div>
-            </div>
-
-            <div class="chart-card">
-                <div class="chart-header">
-                    <h3><i class="fas fa-globe"></i> Regional Distribution</h3>
-                    <p>Flags deployed per region</p>
-                </div>
-                <div class="chart-container">
-                    <div ref="regionalChart"></div>
                 </div>
             </div>
 

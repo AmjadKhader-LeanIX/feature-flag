@@ -687,15 +687,6 @@ const App = {
                                     <div class="stat-label">Teams</div>
                                 </div>
                             </div>
-                            <div class="stat-card">
-                                <div class="stat-icon" style="background: linear-gradient(135deg, #8b5cf6, #6d28d9);">
-                                    <i class="fas fa-globe"></i>
-                                </div>
-                                <div>
-                                    <div class="stat-number">{{ uniqueRegions.length }}</div>
-                                    <div class="stat-label">Regions</div>
-                                </div>
-                            </div>
                         </div>
 
                         <!-- Data Visualization Charts -->
@@ -712,56 +703,6 @@ const App = {
                             <SkeletonLoader type="chart" :count="2" />
                         </div>
 
-                        <!-- Recent Activity Section -->
-                        <div class="dashboard-sections">
-                            <div class="recent-activity">
-                                <h2><i class="fas fa-clock"></i> Recent Activity</h2>
-
-                                <!-- Loading Skeleton for Activity -->
-                                <SkeletonLoader v-if="loading.auditLogs && auditLogs.length === 0" type="list" :count="5" />
-
-                                <!-- Empty State -->
-                                <div v-else-if="auditLogs.length === 0" class="empty-state">
-                                    <div class="empty-state-icon">
-                                        <i class="fas fa-history"></i>
-                                    </div>
-                                    <div class="empty-state-title">No Recent Activity</div>
-                                    <div class="empty-state-description">
-                                        There are no recent changes to your feature flags. Start by creating or modifying a flag to see activity here.
-                                    </div>
-                                </div>
-
-                                <!-- Activity List -->
-                                <div v-else class="activity-list stagger-fade-in">
-                                    <div v-for="log in auditLogs.slice(0, 10)" :key="log.id" class="activity-item">
-                                        <div class="activity-icon" :style="{
-                                            background: log.operation === 'CREATE' ? 'var(--success-color)' :
-                                                       log.operation === 'UPDATE' ? 'var(--info-color)' :
-                                                       'var(--danger-color)'
-                                        }">
-                                            <i :class="[
-                                                'fas',
-                                                log.operation === 'CREATE' ? 'fa-plus' :
-                                                log.operation === 'UPDATE' ? 'fa-edit' :
-                                                'fa-trash'
-                                            ]"></i>
-                                        </div>
-                                        <div style="flex: 1;">
-                                            <div class="activity-title">
-                                                <span :class="['badge', log.operation === 'CREATE' ? 'badge-success' : log.operation === 'UPDATE' ? 'badge-info' : 'badge-danger']">
-                                                    {{ log.operation }}
-                                                </span>
-                                                {{ log.featureFlagName }}
-                                            </div>
-                                            <div class="activity-time">
-                                                {{ log.team }} · {{ formatDate(log.timestamp) }}
-                                                <span v-if="log.changedBy"> · by {{ log.changedBy }}</span>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
                     </div>
                 </Transition>
 
