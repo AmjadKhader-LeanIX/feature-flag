@@ -24,7 +24,7 @@ You can create additional environments (e.g., Dev, Staging, Production) by copyi
 
 ## API Endpoints Overview
 
-### Feature Flags (10 endpoints)
+### Feature Flags (12 endpoints)
 
 1. **Get All Feature Flags** - `GET /api/feature-flags`
    - Retrieves all feature flags in the system
@@ -58,7 +58,12 @@ You can create additional environments (e.g., Dev, Staging, Production) by copyi
    - Body: `{ "workspaceIds": ["uuid1", "uuid2"], "enabled": true }`
 
 10. **Get Enabled Workspaces** - `GET /api/feature-flags/:id/enabled-workspaces`
-    - Retrieves all workspaces where the feature flag is enabled
+    - Retrieves paginated list of workspaces where the feature flag is enabled
+    - Supports pagination and search query parameters
+
+11. **Get Workspace Counts By Region** - `GET /api/feature-flags/:id/workspace-counts-by-region`
+    - Get a summary of enabled and total workspace counts per region
+    - Returns array with `region`, `enabledCount`, and `totalCount` for each region
 
 ### Workspaces (3 endpoints)
 

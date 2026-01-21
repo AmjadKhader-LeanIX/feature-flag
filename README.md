@@ -143,7 +143,7 @@ A complete **Bruno API collection** is available in the `bruno-collection/` dire
 4. Start testing all endpoints with pre-configured requests
 
 **Collection includes:**
-- ✅ 10 Feature Flag endpoints
+- ✅ 12 Feature Flag endpoints
 - ✅ 3 Workspace endpoints
 - ✅ 5 Audit Log endpoints
 - ✅ Environment configuration (Local)
@@ -172,6 +172,8 @@ A complete **Bruno API collection** is available in the `bruno-collection/` dire
 | `GET` | `/api/feature-flags/team/{team}` | 👥 Get flags by team |
 | `GET` | `/api/feature-flags/search?name={name}` | 🔎 Search feature flags |
 | `PUT` | `/api/feature-flags/{id}/workspaces` | 🎯 Enable/disable flag for specific workspaces |
+| `GET` | `/api/feature-flags/{id}/enabled-workspaces` | 🏢 Get paginated list of enabled workspaces |
+| `GET` | `/api/feature-flags/{id}/workspace-counts-by-region` | 📊 Get enabled/total workspace counts per region |
 
 ### 📝 Audit Logs
 
@@ -242,11 +244,10 @@ The system uses Flyway for version-controlled schema migrations:
 
 | Migration | Description |
 |-----------|-------------|
-| `V1__Initial_schema.sql` | 🏗️ Initial database schema with workspaces and feature flags |
-| `V2__Add_timestamps_to_feature_flag.sql` | ⏰ Added created_at and updated_at timestamps |
-| `V3__Add_region_support.sql` | 🌍 Added region enum and workspace region field |
-| `V4__Add_multiregion_support.sql` | 🌐 Added multi-region support to feature flags |
-| `V5__Add_audit_log.sql` | 📝 Added comprehensive audit logging table |
+| `V1__Initial_schema.sql` | 🏗️ Complete initial schema with workspaces, feature flags, workspace_feature_flag join table, and audit logging. Includes all indexes for performance optimization. |
+| `V2__Add_unique_constraint_to_feature_flag_name.sql` | 🔒 Added unique constraint on feature_flag.name to ensure global uniqueness |
+
+**Note:** The initial migration (V1) includes all core tables with timestamps, region support, and audit logging built-in from the start.
 
 ---
 
@@ -288,15 +289,39 @@ docker-compose --profile tools up -d
 
 ### 💻 Local Development
 
-#### 1️⃣ **Start PostgreSQL:**
+#### Option 1: Frontend + Backend Separately (Recommended for Development)
+
+1. **Start PostgreSQL:**
 ```bash
 docker-compose up postgres -d
 ```
 
-#### 2️⃣ **Run the application:**
+2. **Run backend (Terminal 1):**
 ```bash
 ./gradlew bootRun
 ```
+
+3. **Run frontend with hot reload (Terminal 2):**
+```bash
+cd frontend && npm run dev
+```
+
+Access frontend dev server at http://localhost:5173 (proxies API to :8080)
+
+#### Option 2: Single JAR with Bundled Frontend
+
+1. **Start PostgreSQL:**
+```bash
+docker-compose up postgres -d
+```
+
+2. **Build and run:**
+```bash
+./gradlew build
+java -jar build/libs/feature-flag-1.0.0.jar
+```
+
+Access application at http://localhost:8080
 
 ### ⚙️ Environment Variables
 
@@ -436,6 +461,65 @@ curl -X PUT http://localhost:8080/api/feature-flags/{feature-flag-id}/workspaces
 ```bash
 curl -X DELETE http://localhost:8080/api/feature-flags/{feature-flag-id}
 ```
+
+### 🏢 Get Enabled Workspaces for a Feature Flag
+```bash
+# Get paginated list of workspaces where flag is enabled
+curl "http://localhost:8080/api/feature-flags/{feature-flag-id}/enabled-workspaces?page=0&size=100"
+
+# Search within enabled workspaces
+curl "http://localhost:8080/api/feature-flags/{feature-flag-id}/enabled-workspaces?search=production"
+```
+
+**Response:**
+```json
+{
+  "content": [
+    {
+      "id": "123e4567-e89b-12d3-a456-426614174000",
+      "name": "Production Workspace EU",
+      "type": "PRODUCTION",
+      "region": "WESTEUROPE",
+      "createdAt": "2024-01-01T10:00:00",
+      "updatedAt": "2024-01-01T10:00:00"
+    }
+  ],
+  "totalElements": 150,
+  "totalPages": 2,
+  "currentPage": 0,
+  "pageSize": 100,
+  "first": true,
+  "last": false
+}
+```
+
+### 📊 Get Workspace Counts by Region
+```bash
+curl http://localhost:8080/api/feature-flags/{feature-flag-id}/workspace-counts-by-region
+```
+
+**Response:**
+```json
+[
+  {
+    "region": "WESTEUROPE",
+    "enabledCount": 100,
+    "totalCount": 150
+  },
+  {
+    "region": "EASTUS",
+    "enabledCount": 50,
+    "totalCount": 75
+  },
+  {
+    "region": "CANADACENTRAL",
+    "enabledCount": 0,
+    "totalCount": 30
+  }
+]
+```
+
+> **💡 Use Case:** This endpoint provides a region-level summary showing how many workspaces have a feature flag enabled versus the total number of workspaces in each region. Perfect for understanding regional rollout status at a glance.
 
 ### 📝 Get All Audit Logs
 ```bash
@@ -777,15 +861,18 @@ When retrieving feature flags for a workspace:
    - `regions` contains the workspace's region
 3. **Apply rollout** - Check if workspace is in the rollout percentage for matching flags
 
-### 🌐 Region Examples:
+### 🌐 Region Matching Examples:
 
-| Feature Flag Regions | Workspace Region | Match? |
-|---------------------|------------------|--------|
-| `["ALL"]` | WESTEUROPE | ✅ Yes |
-| `["WESTEUROPE"]` | WESTEUROPE | ✅ Yes |
-| `["EASTUS"]` | WESTEUROPE | ❌ No |
-| `["WESTEUROPE", "EASTUS"]` | WESTEUROPE | ✅ Yes |
-| `["WESTEUROPE", "EASTUS"]` | JAPANEAST | ❌ No |
+| Feature Flag Regions | Workspace Region | Match? | Explanation |
+|---------------------|------------------|--------|-------------|
+| `["ALL"]` | WESTEUROPE | ✅ Yes | ALL matches any region |
+| `["WESTEUROPE"]` | WESTEUROPE | ✅ Yes | Exact region match |
+| `["EASTUS"]` | WESTEUROPE | ❌ No | Region mismatch |
+| `["WESTEUROPE", "EASTUS"]` | WESTEUROPE | ✅ Yes | Multi-region includes workspace |
+| `["WESTEUROPE", "EASTUS"]` | JAPANEAST | ❌ No | Workspace region not in target list |
+| `["ALL"]` | CANADACENTRAL | ✅ Yes | ALL matches any region |
+
+**Important:** Region filtering occurs at the service layer, not in the database. The `region` field in the `workspaces` table is a VARCHAR, not an enum, allowing flexibility. The Region enum is only used for validation in the application layer.
 
 ### 🎯 Use Cases:
 
@@ -890,6 +977,8 @@ The application includes a modern, feature-rich web interface built with **Vue.j
 - Visual rollout percentage sliders
 - Multi-region selection with checkboxes
 - Team-based organization
+- **Region breakdown view** - See enabled/total workspace counts per region
+- Paginated enabled workspaces view with search
 
 </td>
 </tr>
@@ -919,50 +1008,45 @@ The application includes a modern, feature-rich web interface built with **Vue.j
 
 ### 📁 Frontend Architecture:
 
-| File/Directory | Description |
-|----------------|-------------|
-| `index.html` | 📄 Main HTML page with Vue.js integration |
-| `js/app.js` | ⚛️ Main Vue.js application and state management |
-| `js/services/api-service.js` | 🌐 API client with Axios |
-| `js/components/` | 🧩 Reusable Vue components |
-| `js/components/FeatureFlagFormComponent.js` | 📝 Feature flag creation/editing form |
-| `js/components/ModalComponent.js` | 🪟 Modal dialog component |
-| `js/components/ToastComponent.js` | 🔔 Notification toast component |
-| `js/utils/helpers.js` | 🛠️ Utility functions |
-| `css/variables.css` | 🎨 CSS custom properties (design tokens) |
-| `css/base.css` | 📐 Base styles and layout |
-| `css/components.css` | 🧩 Component-specific styles |
+Built with **Vue 3 Composition API**, **Vite**, and **Tailwind CSS** following an **Atomic Design** pattern.
+
+| Directory | Description |
+|-----------|-------------|
+| `src/App.vue` | 🎯 Main application component with routing logic and state management |
+| `src/main.js` | 🚀 Application entry point |
+| `src/services/api-service.js` | 🌐 Axios-based API client with error handling |
+| `src/components/atoms/` | ⚛️ Basic UI elements (Button, Badge, Input, Switch, Card) |
+| `src/components/molecules/` | 🔬 Composite components (SearchBar, FormGroup, Pagination, StatCard, FilterBar) |
+| `src/components/organisms/` | 🧬 Complex components (FioriTable, FioriModal, FioriNotification, FeatureFlagForm, WorkspaceFeatureFlagForm, DashboardCharts) |
+| `src/components/layouts/` | 🏗️ Layout components (FioriShellLayout, PageLayout) |
+| `src/composables/` | 🪝 Reusable Vue composables (useApiCall, useFormState, useInfiniteScroll, useDebouncedSearch) |
+| `src/assets/styles/tailwind.css` | 🎨 Tailwind CSS imports and custom styles |
+| `tailwind.config.js` | ⚙️ Tailwind configuration with custom theme |
 
 ### 🎨 Design System:
 
-- **Color Palette** - Primary, secondary, success, warning, danger colors
-- **Typography** - Consistent font sizes and weights
-- **Spacing** - 8px grid system
-- **Components** - Buttons, cards, forms, tables, badges, modals
-- **Icons** - Font Awesome 6.5.1 integration
-- **Responsive** - Mobile-first approach
+Built with **SAP Fiori-inspired** design system and **Tailwind CSS**:
+
+- **UI Framework** - Custom Fiori-inspired component library
+- **CSS Framework** - Tailwind CSS 3 with custom configuration
+- **Typography** - 72 font family with system fallbacks
+- **Color Palette** - Primary (SAP Blue), success, warning, danger with full shade ranges
+- **Spacing** - Tailwind's default spacing scale (4px base unit)
+- **Components** - Atomic design pattern (Atoms, Molecules, Organisms)
+- **Icons** - Lucide Vue Next icon library
+- **Charts** - Chart.js for data visualization (rollout distribution, team statistics)
+- **Responsive** - Mobile-first design with Tailwind breakpoints
+- **Animations** - Tailwind CSS transitions and custom fade-in animations
 
 ---
 
 ## 🛠️ Development
 
-### 📊 Database Migrations
-
-Database schema changes are managed with **Flyway migrations** in `src/main/resources/db/migration/`:
-
-| Migration | Description | Changes |
-|-----------|-------------|---------|
-| `V1__Initial_schema.sql` | 🏗️ Initial database schema | Workspaces, feature flags, workspace_feature_flag tables |
-| `V2__Add_timestamps_to_feature_flag.sql` | ⏰ Timestamp tracking | Added created_at, updated_at to feature_flag |
-| `V3__Add_region_support.sql` | 🌍 Region support | Added region enum and workspace.region column |
-| `V4__Add_multiregion_support.sql` | 🌐 Multi-region flags | Added regions column to feature_flag |
-| `V5__Add_audit_log.sql` | 📝 Audit logging | Created feature_flag_audit_log table |
-
 ### 📂 Project Structure
 
 ```
-src/
-├── main/
+.
+├── src/main/
 │   ├── kotlin/com/featureflag/
 │   │   ├── controller/              # 📡 REST API endpoints
 │   │   ├── dto/                     # 📦 Data Transfer Objects
@@ -972,9 +1056,17 @@ src/
 │   │   └── service/                 # ⚙️ Business logic
 │   └── resources/
 │       ├── application.yml          # ⚙️ Configuration
-│       ├── db/migration/            # 📊 Database migrations
-│       └── static/                  # 🌐 Frontend files
-└── test/                            # 🧪 Test suites
+│       ├── db/migration/            # 📊 Flyway database migrations
+│       └── static/                  # 🌐 Built frontend files (copied during build)
+├── src/test/                        # 🧪 Backend test suites
+├── frontend/
+│   ├── src/                         # Vue 3 application source
+│   ├── dist/                        # Vite build output (copied to static/)
+│   ├── package.json                 # Frontend dependencies
+│   └── vite.config.js               # Vite configuration
+├── bruno-collection/                # Bruno API testing collection
+├── build.gradle.kts                 # Gradle build with frontend integration
+└── docker-compose.yml               # Docker services configuration
 ```
 
 ### 🔨 Building
@@ -1039,7 +1131,5 @@ This project is for **educational and demonstration purposes**.
 <div align="center">
 
 **[⬆ back to top](#-feature-flag-management-service)**
-
-Made with ❤️ using Kotlin, Spring Boot, and Vue.js
 
 </div>

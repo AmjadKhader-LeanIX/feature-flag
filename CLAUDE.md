@@ -107,6 +107,8 @@ Controller → Service → Repository → Database
 - `repository/` - Spring Data JPA repositories
 - `entity/` - JPA entities (FeatureFlag, Workspace, WorkspaceFeatureFlag, FeatureFlagAuditLog)
 - `dto/` - Request/response objects with Jakarta Bean Validation
+  - `RegionWorkspaceCountDto` - Region-level workspace statistics (enabled/total counts)
+  - `PageableResponse<T>` - Generic paginated response wrapper
 - `exception/` - Custom exceptions and global exception handler
 
 **Important Services:**
@@ -247,6 +249,35 @@ The `/api/feature-flags/{id}/workspaces` endpoint allows manual enable/disable f
 2. **Rollout is Workspace-Level:** Rollout percentages apply to workspaces, not individual users within workspaces.
 3. **No Feature Flag Versioning:** No rollback capability - changes are immediate and permanent.
 4. **No Scheduled Flags:** Cannot schedule enable/disable at specific times.
+
+## Key API Endpoints
+
+### Feature Flag Endpoints
+- `GET /api/feature-flags` - List all feature flags
+- `POST /api/feature-flags` - Create a new feature flag
+- `PUT /api/feature-flags/{id}` - Update feature flag
+- `DELETE /api/feature-flags/{id}` - Delete feature flag
+- `GET /api/feature-flags/{id}/enabled-workspaces` - Get paginated list of enabled workspaces (supports search)
+- `GET /api/feature-flags/{id}/workspace-counts-by-region` - Get enabled/total workspace counts per region
+- `PUT /api/feature-flags/{id}/workspaces` - Manual enable/disable for specific workspaces
+
+### Workspace Endpoints
+- `GET /api/workspaces` - List all workspaces (supports pagination and search)
+- `GET /api/workspaces/{id}/enabled-feature-flags` - Get enabled flags for a workspace
+
+### Audit Log Endpoints
+- `GET /api/audit-logs` - Get audit logs (supports filtering by featureFlagId, team, operation)
+
+## Frontend Features
+
+### Enabled Workspaces Modal
+When viewing enabled workspaces for a feature flag, the UI displays:
+1. **Region Breakdown** - Shows enabled:total counts for each region (e.g., "WESTEUROPE - 100 out of 150")
+2. **Paginated Workspace List** - Infinite scroll pagination loading 100 workspaces at a time
+3. **Search** - Filter workspaces by name, type, or region
+4. **Total Count** - Shows total enabled workspaces across all regions
+
+The region breakdown is loaded via `/api/feature-flags/{id}/workspace-counts-by-region` and displayed as badges showing the format: `{enabledCount} out of {totalCount}` for each region.
 
 ## API Testing
 
