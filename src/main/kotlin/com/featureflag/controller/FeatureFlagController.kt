@@ -4,6 +4,7 @@ import com.featureflag.dto.CreateFeatureFlagRequest
 import com.featureflag.dto.FeatureFlagDto
 import com.featureflag.dto.UpdateFeatureFlagRequest
 import com.featureflag.dto.UpdateWorkspaceFeatureFlagRequest
+import com.featureflag.dto.WorkspaceDto
 import com.featureflag.service.FeatureFlagService
 import jakarta.validation.Valid
 import org.springframework.http.HttpStatus
@@ -20,18 +21,6 @@ class FeatureFlagController(
     @GetMapping
     fun getAllFeatureFlags(): ResponseEntity<List<FeatureFlagDto>> {
         val featureFlags = featureFlagService.getAllFeatureFlags()
-        return ResponseEntity.ok(featureFlags)
-    }
-
-    @GetMapping("/{id}")
-    fun getFeatureFlagById(@PathVariable id: UUID): ResponseEntity<FeatureFlagDto> {
-        val featureFlag = featureFlagService.getFeatureFlagById(id)
-        return ResponseEntity.ok(featureFlag)
-    }
-
-    @GetMapping("/workspace/{workspaceId}")
-    fun getFeatureFlagsByWorkspace(@PathVariable workspaceId: UUID): ResponseEntity<List<FeatureFlagDto>> {
-        val featureFlags = featureFlagService.getFeatureFlagsByWorkspace(workspaceId)
         return ResponseEntity.ok(featureFlags)
     }
 
@@ -62,12 +51,6 @@ class FeatureFlagController(
         return ResponseEntity.noContent().build()
     }
 
-    @GetMapping("/search")
-    fun searchFeatureFlags(@RequestParam name: String): ResponseEntity<List<FeatureFlagDto>> {
-        val featureFlags = featureFlagService.searchFeatureFlags(name)
-        return ResponseEntity.ok(featureFlags)
-    }
-
     @PutMapping("/{id}/workspaces")
     fun updateWorkspaceFeatureFlags(
         @PathVariable id: UUID,
@@ -82,17 +65,11 @@ class FeatureFlagController(
         @PathVariable id: UUID,
         @RequestParam(defaultValue = "0") page: Int,
         @RequestParam(defaultValue = "100") size: Int,
-        @RequestParam(defaultValue = "false") paginated: Boolean,
+        @RequestParam(defaultValue = "true") paginated: Boolean,
         @RequestParam(required = false) search: String?
-    ): ResponseEntity<*> {
-        return if (paginated) {
-            val paginatedWorkspaces = featureFlagService.getEnabledWorkspacesForFeatureFlagPaginated(id, page, size, search)
-            ResponseEntity.ok(paginatedWorkspaces)
-        } else {
-            // Backward compatibility
-            val workspaces = featureFlagService.getEnabledWorkspacesForFeatureFlag(id)
-            ResponseEntity.ok(workspaces)
-        }
+    ): ResponseEntity<com.featureflag.dto.PageableResponse<WorkspaceDto>> {
+        val paginatedWorkspaces = featureFlagService.getEnabledWorkspacesForFeatureFlagPaginated(id, page, size, search)
+        return ResponseEntity.ok(paginatedWorkspaces)
     }
 
     @GetMapping("/{id}/workspace-counts-by-region")

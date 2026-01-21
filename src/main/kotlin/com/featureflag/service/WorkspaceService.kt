@@ -32,26 +32,6 @@ class WorkspaceService(
         return PageableResponse.of(dtoPage)
     }
 
-    fun getWorkspaceById(id: UUID): WorkspaceDto {
-        val workspace = workspaceRepository.findById(id)
-            .orElseThrow { ResourceNotFoundException("Workspace not found with id: $id") }
-        return workspace.toDto()
-    }
-
-    /**
-     * Get all feature flags that are enabled for this workspace
-     * Uses JOIN FETCH to avoid N+1 query problem
-     */
-    fun getEnabledFeatureFlagsForWorkspace(workspaceId: UUID): List<com.featureflag.dto.FeatureFlagDto> {
-        val workspace = workspaceRepository.findById(workspaceId)
-            .orElseThrow { ResourceNotFoundException("Workspace not found with id: $workspaceId") }
-
-        // Use optimized query with JOIN FETCH to load feature flags in single query
-        val enabledAssociations = workspaceFeatureFlagRepository.findEnabledByWorkspaceIdWithFeatureFlag(workspace.id!!)
-
-        return enabledAssociations.map { it.featureFlag.toDto() }
-    }
-
     fun getEnabledFeatureFlagsForWorkspacePaginated(
         workspaceId: UUID,
         page: Int,

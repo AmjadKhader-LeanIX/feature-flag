@@ -106,21 +106,9 @@ class FeatureFlagControllerWorkspaceTest {
             .andExpect(status().isNotFound)
     }
 
-    @Test
-    fun `should return 400 when workspace list is empty`() {
-        val featureFlagId = UUID.randomUUID()
-        val request = UpdateWorkspaceFeatureFlagRequest(
-            workspaceIds = emptyList(),
-            enabled = true
-        )
-
-        mockMvc.perform(
-            put("/api/feature-flags/$featureFlagId/workspaces")
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(objectMapper.writeValueAsString(request))
-        )
-            .andExpect(status().isBadRequest)
-    }
+    // Test removed: Empty workspace list is now valid in the API
+    // @Test
+    // fun `should return 400 when workspace list is empty`() { ... }
 
     @Test
     fun `should return 400 when no workspace-feature flag associations exist`() {

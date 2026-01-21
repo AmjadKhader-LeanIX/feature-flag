@@ -18,9 +18,6 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 
-  <!-- LeanIX-aligned Typography - Inter Font -->
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-
   <style>
     /* Loading screen styles */
     #loading-screen {
@@ -68,10 +65,10 @@
       display: none !important;
     }
   </style>
-
-  <!-- Vite production bundle -->
-  <link rel="modulepreload" href="/dist/js/vendor.js">
-  <link rel="stylesheet" href="/dist/css/index.css">
+  <script type="module" crossorigin src="/js/index.js"></script>
+  <link rel="modulepreload" crossorigin href="/js/vendor.js">
+  <link rel="modulepreload" crossorigin href="/js/charts.js">
+  <link rel="stylesheet" crossorigin href="/css/index.css">
 </head>
 <body>
   <!-- Loading screen -->
@@ -83,7 +80,6 @@
   <!-- Vue app mount point -->
   <div id="app" v-cloak></div>
 
-  <!-- Vite entry point (production build) -->
-  <script type="module" src="/dist/js/index.js"></script>
+  <!-- Vite entry point -->
 </body>
 </html>

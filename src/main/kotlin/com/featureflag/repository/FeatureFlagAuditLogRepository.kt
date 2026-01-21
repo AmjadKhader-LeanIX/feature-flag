@@ -11,13 +11,7 @@ import java.util.*
 @Repository
 interface FeatureFlagAuditLogRepository : JpaRepository<FeatureFlagAuditLog, UUID> {
     fun findByFeatureFlagIdOrderByTimestampDesc(featureFlagId: UUID): List<FeatureFlagAuditLog>
-    fun findByTeamOrderByTimestampDesc(team: String): List<FeatureFlagAuditLog>
-    fun findByOperationOrderByTimestampDesc(operation: AuditOperation): List<FeatureFlagAuditLog>
     fun findAllByOrderByTimestampDesc(): List<FeatureFlagAuditLog>
-    fun findByFeatureFlagIdAndOperationOrderByTimestampDesc(
-        featureFlagId: UUID,
-        operation: AuditOperation
-    ): List<FeatureFlagAuditLog>
 
     fun findByFeatureFlagNameContainingIgnoreCaseOrTeamContainingIgnoreCase(
         featureFlagName: String,

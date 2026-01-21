@@ -134,6 +134,13 @@ const initRolloutChart = async () => {
   const labels = Object.keys(distribution)
   const data = Object.values(distribution)
 
+  // Don't render if all data is zero
+  const hasData = data.some(val => val > 0)
+  if (!hasData) {
+    rolloutChartRef.value.innerHTML = '<div class="flex items-center justify-center h-full text-gray-400">No data available</div>'
+    return
+  }
+
   const options = {
     chart: {
       type: 'donut',
@@ -220,6 +227,13 @@ const initTeamChart = async () => {
 
   const teamData = teamPerformance.value
   const teams = Object.keys(teamData).sort()
+
+  // Don't render if no teams
+  if (teams.length === 0) {
+    teamChartRef.value.innerHTML = '<div class="flex items-center justify-center h-full text-gray-400">No data available</div>'
+    return
+  }
+
   const totalData = teams.map(team => teamData[team].total)
   const activeData = teams.map(team => teamData[team].active)
 
@@ -302,6 +316,18 @@ const initActivityChart = async () => {
 
   const timeline = activityTimeline.value
   const dates = Object.keys(timeline).sort()
+
+  // Check if there's any activity data
+  const hasActivity = dates.some(date => {
+    const day = timeline[date]
+    return day.CREATE > 0 || day.UPDATE > 0 || day.DELETE > 0
+  })
+
+  if (!hasActivity) {
+    activityChartRef.value.innerHTML = '<div class="flex items-center justify-center h-full text-gray-400">No activity in the last 30 days</div>'
+    return
+  }
+
   const createData = dates.map(date => timeline[date].CREATE)
   const updateData = dates.map(date => timeline[date].UPDATE)
   const deleteData = dates.map(date => timeline[date].DELETE)
@@ -406,22 +432,55 @@ const initActivityChart = async () => {
 watch(() => props.featureFlags, () => {
   if (rolloutChart) {
     const distribution = rolloutDistribution.value
-    rolloutChart.updateSeries(Object.values(distribution))
+    const data = Object.values(distribution)
+    const hasData = data.some(val => val > 0)
+
+    if (hasData) {
+      rolloutChart.updateSeries(data)
+    } else {
+      // Destroy and show empty message
+      if (rolloutChart) {
+        rolloutChart.destroy()
+        rolloutChart = null
+      }
+      if (rolloutChartRef.value) {
+        rolloutChartRef.value.innerHTML = '<div class="flex items-center justify-center h-full text-gray-400">No data available</div>'
+      }
+    }
+  } else {
+    // Re-initialize if chart doesn't exist
+    initRolloutChart()
   }
+
   if (teamChart) {
     const teamData = teamPerformance.value
     const teams = Object.keys(teamData).sort()
-    const totalData = teams.map(team => teamData[team].total)
-    const activeData = teams.map(team => teamData[team].active)
-    teamChart.updateOptions({
-      xaxis: {
-        categories: teams
+
+    if (teams.length > 0) {
+      const totalData = teams.map(team => teamData[team].total)
+      const activeData = teams.map(team => teamData[team].active)
+      teamChart.updateOptions({
+        xaxis: {
+          categories: teams
+        }
+      })
+      teamChart.updateSeries([
+        { name: 'Total Flags', data: totalData },
+        { name: 'Active Flags', data: activeData }
+      ])
+    } else {
+      // Destroy and show empty message
+      if (teamChart) {
+        teamChart.destroy()
+        teamChart = null
       }
-    })
-    teamChart.updateSeries([
-      { name: 'Total Flags', data: totalData },
-      { name: 'Active Flags', data: activeData }
-    ])
+      if (teamChartRef.value) {
+        teamChartRef.value.innerHTML = '<div class="flex items-center justify-center h-full text-gray-400">No data available</div>'
+      }
+    }
+  } else {
+    // Re-initialize if chart doesn't exist
+    initTeamChart()
   }
 }, { deep: true })
 
@@ -430,23 +489,44 @@ watch(() => props.auditLogs, () => {
   if (activityChart) {
     const timeline = activityTimeline.value
     const dates = Object.keys(timeline).sort()
-    const createData = dates.map(date => timeline[date].CREATE)
-    const updateData = dates.map(date => timeline[date].UPDATE)
-    const deleteData = dates.map(date => timeline[date].DELETE)
 
-    activityChart.updateOptions({
-      xaxis: {
-        categories: dates.map(date => {
-          const d = new Date(date)
-          return (d.getMonth() + 1) + '/' + d.getDate()
-        })
-      }
+    // Check if there's any activity data
+    const hasActivity = dates.some(date => {
+      const day = timeline[date]
+      return day.CREATE > 0 || day.UPDATE > 0 || day.DELETE > 0
     })
-    activityChart.updateSeries([
-      { name: 'Created', data: createData },
-      { name: 'Updated', data: updateData },
-      { name: 'Deleted', data: deleteData }
-    ])
+
+    if (hasActivity) {
+      const createData = dates.map(date => timeline[date].CREATE)
+      const updateData = dates.map(date => timeline[date].UPDATE)
+      const deleteData = dates.map(date => timeline[date].DELETE)
+
+      activityChart.updateOptions({
+        xaxis: {
+          categories: dates.map(date => {
+            const d = new Date(date)
+            return (d.getMonth() + 1) + '/' + d.getDate()
+          })
+        }
+      })
+      activityChart.updateSeries([
+        { name: 'Created', data: createData },
+        { name: 'Updated', data: updateData },
+        { name: 'Deleted', data: deleteData }
+      ])
+    } else {
+      // Destroy and show empty message
+      if (activityChart) {
+        activityChart.destroy()
+        activityChart = null
+      }
+      if (activityChartRef.value) {
+        activityChartRef.value.innerHTML = '<div class="flex items-center justify-center h-full text-gray-400">No activity in the last 30 days</div>'
+      }
+    }
+  } else {
+    // Re-initialize if chart doesn't exist
+    initActivityChart()
   }
 }, { deep: true })
 
