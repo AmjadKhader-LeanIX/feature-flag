@@ -65,3 +65,21 @@ dependencyCheck {
     suppressionFile = "suppressions.xml"
 
 }
+
+// Frontend build integration
+tasks.register<Exec>("buildFrontend") {
+    description = "Build frontend with npm"
+    workingDir(file("../frontend"))
+    commandLine(if (System.getProperty("os.name").toLowerCase().contains("win")) "npm.cmd" else "npm", "run", "build")
+}
+
+tasks.register<Copy>("copyFrontendDist") {
+    description = "Copy frontend dist to backend static resources"
+    dependsOn("buildFrontend")
+    from(file("../frontend/dist"))
+    into(file("src/main/resources/static"))
+}
+
+tasks.named("bootJar") {
+    dependsOn("copyFrontendDist")
+}

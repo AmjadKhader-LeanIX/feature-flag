@@ -1,29 +1,16 @@
 {
-  "name": "feature-flag-manager",
+  "name": "feature-flag-monorepo",
   "version": "2.0.0",
-  "description": "Feature Flag Management Service with Tailwind CSS + SAP Fiori Horizon design",
-  "type": "module",
+  "description": "Feature Flag Manager - Full Stack",
+  "private": true,
   "scripts": {
-    "dev": "vite",
-    "build": "vite build",
-    "preview": "vite preview",
-    "lint": "eslint . --ext .vue,.js,.jsx,.cjs,.mjs --fix --ignore-path .gitignore"
-  },
-  "dependencies": {
-    "apexcharts": "^4.2.0",
-    "axios": "^1.6.5",
-    "lucide-vue-next": "^0.309.0",
-    "vue": "^3.4.15",
-    "vue3-apexcharts": "^1.10.0"
-  },
-  "devDependencies": {
-    "@vitejs/plugin-vue": "^5.0.3",
-    "autoprefixer": "^10.4.17",
-    "eslint": "^8.56.0",
-    "eslint-plugin-vue": "^9.20.1",
-    "postcss": "^8.4.33",
-    "tailwindcss": "^3.4.1",
-    "terser": "^5.46.0",
-    "vite": "^5.0.11"
+    "dev:frontend": "cd frontend && npm run dev",
+    "build:frontend": "cd frontend && npm run build",
+    "dev:backend": "cd backend && ./gradlew bootRun",
+    "build:backend": "cd backend && ./gradlew build",
+    "build": "npm run build:frontend && npm run build:backend",
+    "docker:build": "docker build -f docker/Dockerfile -t feature-flag:latest .",
+    "docker:up": "docker-compose -f docker/docker-compose.yml up",
+    "docker:down": "docker-compose -f docker/docker-compose.yml down"
   }
 }

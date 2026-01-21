@@ -44,3 +44,15 @@ bin/
 ### Mac OS ###
 .DS_Store
 /.idea/
+
+### Backend ###
+/backend/build/
+/backend/.gradle/
+/backend/out/
+
+### Frontend ###
+/frontend/node_modules/
+/frontend/dist/
+
+### Root ###
+node_modules/
