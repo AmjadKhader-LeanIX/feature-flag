@@ -11,9 +11,6 @@ import java.util.*
 
 @Repository
 interface WorkspaceRepository : JpaRepository<Workspace, UUID> {
-    fun findByRegionIn(region: List<String>): List<Workspace>
-
-    // Paginated version that uses the index idx_workspaces_region_created
     override fun findAll(pageable: Pageable): Page<Workspace>
 
     // Search workspaces by name or region with pagination

@@ -32,22 +32,8 @@ class FeatureFlagService(
         return featureFlagRepository.findAll().map { it.toDto() }
     }
 
-    fun getFeatureFlagById(id: UUID): FeatureFlagDto {
-        val featureFlag = featureFlagRepository.findById(id)
-            .orElseThrow { ResourceNotFoundException("Feature flag not found with id: $id") }
-        return featureFlag.toDto()
-    }
-
     fun getFeatureFlagsByTeam(team: String): List<FeatureFlagDto> {
         return featureFlagRepository.findByTeam(team).map { it.toDto() }
-    }
-
-    fun getFeatureFlagsByWorkspace(workspaceId: UUID): List<FeatureFlagDto> {
-        val workspace = workspaceRepository.findById(workspaceId)
-            .orElseThrow { ResourceNotFoundException("Workspace not found with id: $workspaceId") }
-
-        val workspaceFeatureFlags = workspaceFeatureFlagRepository.findByWorkspaceId(workspace.id!!)
-        return workspaceFeatureFlags.map { it.featureFlag.toDto() }
     }
 
     @Transactional
@@ -116,10 +102,6 @@ class FeatureFlagService(
         auditLogService.logDelete(featureFlag)
 
         featureFlagRepository.deleteById(id)
-    }
-
-    fun searchFeatureFlags(name: String): List<FeatureFlagDto> {
-        return featureFlagRepository.findByNameContainingIgnoreCase(name).map { it.toDto() }
     }
 
     /**
@@ -353,83 +335,6 @@ class FeatureFlagService(
     }
 
     /**
-     * Applies rollout percentage to workspaces in a specific region only.
-     * Other regions remain unchanged. Uses the same deterministic hash-based
-     * sorting as global rollout to ensure consistency.
-     *
-     * @param featureFlag The feature flag being updated
-     * @param percentage The rollout percentage to apply (0-100)
-     * @param targetRegion The region to target (e.g., WESTEUROPE, EASTUS)
-     */
-    private fun applyRegionSpecificRollout(
-        featureFlag: FeatureFlag,
-        percentage: Int,
-        targetRegion: Region
-    ) {
-        // Load all existing workspace-feature flag associations
-        val allAssociations = workspaceFeatureFlagRepository.findByFeatureFlag(featureFlag)
-
-        // Filter workspaces by target region (exclude Region.ALL and null)
-        val regionWorkspaces = allAssociations.filter {
-            it.workspace.region == targetRegion && targetRegion != Region.ALL
-        }
-
-        // Only affect the target region, leave other regions unchanged
-        val workspacesToUpdate = mutableListOf<WorkspaceFeatureFlag>()
-
-        // Apply rollout percentage to target region workspaces only
-        if (regionWorkspaces.isEmpty()) {
-            // No workspaces in target region, nothing to update
-            return
-        }
-
-        // Handle edge cases for target region
-        if (percentage == 0) {
-            // Disable all workspaces in target region
-            regionWorkspaces.forEach { wff ->
-                if (wff.isEnabled) {
-                    wff.isEnabled = false
-                    wff.updatedAt = LocalDateTime.now()
-                    workspacesToUpdate.add(wff)
-                }
-            }
-        } else if (percentage == 100) {
-            // Enable all workspaces in target region
-            regionWorkspaces.forEach { wff ->
-                if (!wff.isEnabled) {
-                    wff.isEnabled = true
-                    wff.updatedAt = LocalDateTime.now()
-                    workspacesToUpdate.add(wff)
-                }
-            }
-        } else {
-            // Apply percentage using deterministic hash-based sorting
-            val targetEnabledCount = (regionWorkspaces.size * percentage / 100.0).toInt()
-
-            // Sort region workspaces deterministically
-            val sortedRegionWorkspaces = regionWorkspaces.sortedBy { wff ->
-                val workspaceId = wff.workspace.id!!
-                abs((featureFlag.id.toString() + workspaceId.toString()).hashCode())
-            }
-
-            // Enable first targetEnabledCount workspaces, disable the rest
-            sortedRegionWorkspaces.forEachIndexed { index, wff ->
-                val shouldBeEnabled = index < targetEnabledCount
-                if (wff.isEnabled != shouldBeEnabled) {
-                    wff.isEnabled = shouldBeEnabled
-                    wff.updatedAt = LocalDateTime.now()
-                    workspacesToUpdate.add(wff)
-                }
-            }
-        }
-
-        // Batch update all workspaces that need state changes
-        if (workspacesToUpdate.isNotEmpty()) {
-            workspaceFeatureFlagRepository.saveAll(workspacesToUpdate)
-        }
-    }
-
-    /**
      * Applies rollout percentage globally while ensuring:
      * 1. Excluded workspaces are always disabled (highest priority)
      * 2. Pinned workspaces are always enabled (unless excluded)
@@ -621,19 +526,6 @@ class FeatureFlagService(
         if (workspacesToUpdate.isNotEmpty()) {
             workspaceFeatureFlagRepository.saveAll(workspacesToUpdate)
         }
-    }
-
-    /**
-     * Get all workspaces that have this feature flag enabled
-     */
-    fun getEnabledWorkspacesForFeatureFlag(featureFlagId: UUID): List<com.featureflag.dto.WorkspaceDto> {
-        val featureFlag = featureFlagRepository.findById(featureFlagId)
-            .orElseThrow { ResourceNotFoundException("Feature flag not found with id: $featureFlagId") }
-
-        val enabledAssociations = workspaceFeatureFlagRepository.findByFeatureFlag(featureFlag)
-            .filter { it.isEnabled }
-
-        return enabledAssociations.map { it.workspace.toDto() }
     }
 
     /**

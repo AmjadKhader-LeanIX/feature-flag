@@ -111,19 +111,6 @@ class AuditLogService(
         return auditLogRepository.findByFeatureFlagIdOrderByTimestampDesc(featureFlagId).map { it.toDto() }
     }
 
-    fun getAuditLogsByTeam(team: String): List<AuditLogDto> {
-        return auditLogRepository.findByTeamOrderByTimestampDesc(team).map { it.toDto() }
-    }
-
-    fun getAuditLogsByOperation(operation: AuditOperation): List<AuditLogDto> {
-        return auditLogRepository.findByOperationOrderByTimestampDesc(operation).map { it.toDto() }
-    }
-
-    fun getAuditLogsByFeatureFlagIdAndOperation(featureFlagId: UUID, operation: AuditOperation): List<AuditLogDto> {
-        return auditLogRepository.findByFeatureFlagIdAndOperationOrderByTimestampDesc(featureFlagId, operation)
-            .map { it.toDto() }
-    }
-
     fun logWorkspaceUpdate(
         oldEnabledCount: Int,
         newEnabledCount: Int,

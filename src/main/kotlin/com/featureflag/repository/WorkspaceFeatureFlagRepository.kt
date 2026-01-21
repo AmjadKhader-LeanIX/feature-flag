@@ -12,14 +12,6 @@ import java.util.*
 
 @Repository
 interface WorkspaceFeatureFlagRepository : JpaRepository<WorkspaceFeatureFlag, UUID> {
-    fun findByWorkspaceId(workspaceId: UUID): List<WorkspaceFeatureFlag>
-
-    @Query("SELECT wff FROM WorkspaceFeatureFlag wff JOIN FETCH wff.featureFlag JOIN FETCH wff.workspace w WHERE w.id = :workspaceId")
-    fun findByWorkspaceIdWithFeatureFlag(workspaceId: UUID): List<WorkspaceFeatureFlag>
-
-    @Query("SELECT wff FROM WorkspaceFeatureFlag wff JOIN FETCH wff.featureFlag JOIN FETCH wff.workspace w WHERE w.id = :workspaceId AND wff.isEnabled = true")
-    fun findEnabledByWorkspaceIdWithFeatureFlag(workspaceId: UUID): List<WorkspaceFeatureFlag>
-
     @Query("SELECT wff FROM WorkspaceFeatureFlag wff WHERE wff.workspace.id = :workspaceId AND wff.isEnabled = true")
     fun findEnabledByWorkspaceIdWithFeatureFlagPaginated(@Param("workspaceId") workspaceId: UUID, pageable: Pageable): Page<WorkspaceFeatureFlag>
 

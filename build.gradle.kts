@@ -8,6 +8,7 @@ plugins {
     kotlin("plugin.jpa") version "2.1.0"
 
     id("org.owasp.dependencycheck") version "10.0.4"
+    jacoco
 }
 
 group = "com.featureflag"
@@ -58,6 +59,16 @@ tasks.withType<KotlinCompile> {
 
 tasks.withType<Test> {
     useJUnitPlatform()
+    finalizedBy("jacocoTestReport")
+}
+
+tasks.jacocoTestReport {
+    dependsOn(tasks.test)
+    reports {
+        xml.required.set(true)
+        html.required.set(true)
+        csv.required.set(false)
+    }
 }
 
 dependencyCheck {
@@ -69,15 +80,28 @@ dependencyCheck {
 // Frontend build integration
 tasks.register<Exec>("buildFrontend") {
     description = "Build frontend with npm"
-    workingDir(file("../frontend"))
-    commandLine(if (System.getProperty("os.name").toLowerCase().contains("win")) "npm.cmd" else "npm", "run", "build")
+    workingDir(file("frontend"))
+    val npmCommand = if (System.getProperty("os.name").toLowerCase().contains("win")) {
+        "npm.cmd"
+    } else {
+        // Use which npm to find the full path, fallback to just "npm"
+        val whichNpm = Runtime.getRuntime().exec("which npm")
+        val npmPath = whichNpm.inputStream.bufferedReader().readText().trim()
+        whichNpm.waitFor()
+        if (npmPath.isNotEmpty()) npmPath else "npm"
+    }
+    commandLine(npmCommand, "run", "build")
 }
 
 tasks.register<Copy>("copyFrontendDist") {
     description = "Copy frontend dist to backend static resources"
     dependsOn("buildFrontend")
-    from(file("../frontend/dist"))
+    from(file("frontend/dist"))
     into(file("src/main/resources/static"))
+}
+
+tasks.named("processResources") {
+    dependsOn("copyFrontendDist")
 }
 
 tasks.named("bootJar") {

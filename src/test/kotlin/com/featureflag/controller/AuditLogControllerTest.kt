@@ -43,70 +43,6 @@ class AuditLogControllerTest {
     }
 
     @Test
-    fun `getAllAuditLogs should filter by featureFlagId`() {
-        val featureFlagId = UUID.randomUUID()
-        val auditLogs = listOf(
-            createAuditLogDto(featureFlagId = featureFlagId, name = "test-flag", operation = AuditOperation.CREATE)
-        )
-
-        every { auditLogService.getAuditLogsByFeatureFlagId(featureFlagId) } returns auditLogs
-
-        mockMvc.perform(get("/api/audit-logs?featureFlagId=$featureFlagId"))
-            .andExpect(status().isOk)
-            .andExpect(jsonPath("$.length()").value(1))
-            .andExpect(jsonPath("$[0].featureFlagId").value(featureFlagId.toString()))
-    }
-
-    @Test
-    fun `getAllAuditLogs should filter by team`() {
-        val team = "test-team"
-        val auditLogs = listOf(
-            createAuditLogDto(name = "flag1", team = team, operation = AuditOperation.CREATE)
-        )
-
-        every { auditLogService.getAuditLogsByTeam(team) } returns auditLogs
-
-        mockMvc.perform(get("/api/audit-logs?team=$team"))
-            .andExpect(status().isOk)
-            .andExpect(jsonPath("$.length()").value(1))
-            .andExpect(jsonPath("$[0].team").value(team))
-    }
-
-    @Test
-    fun `getAllAuditLogs should filter by operation`() {
-        val operation = AuditOperation.UPDATE
-        val auditLogs = listOf(
-            createAuditLogDto(name = "flag1", operation = operation)
-        )
-
-        every { auditLogService.getAuditLogsByOperation(operation) } returns auditLogs
-
-        mockMvc.perform(get("/api/audit-logs?operation=UPDATE"))
-            .andExpect(status().isOk)
-            .andExpect(jsonPath("$.length()").value(1))
-            .andExpect(jsonPath("$[0].operation").value("UPDATE"))
-    }
-
-    @Test
-    fun `getAllAuditLogs should filter by featureFlagId and operation`() {
-        val featureFlagId = UUID.randomUUID()
-        val operation = AuditOperation.UPDATE
-        val auditLogs = listOf(
-            createAuditLogDto(featureFlagId = featureFlagId, name = "test-flag", operation = operation)
-        )
-
-        every {
-            auditLogService.getAuditLogsByFeatureFlagIdAndOperation(featureFlagId, operation)
-        } returns auditLogs
-
-        mockMvc.perform(get("/api/audit-logs?featureFlagId=$featureFlagId&operation=UPDATE"))
-            .andExpect(status().isOk)
-            .andExpect(jsonPath("$.length()").value(1))
-            .andExpect(jsonPath("$[0].featureFlagId").value(featureFlagId.toString()))
-            .andExpect(jsonPath("$[0].operation").value("UPDATE"))
-    }
-
-    @Test
     fun `getAuditLogsByFeatureFlagId should return audit logs for specific feature flag`() {
         val featureFlagId = UUID.randomUUID()
         val auditLogs = listOf(
@@ -121,40 +57,6 @@ class AuditLogControllerTest {
             .andExpect(jsonPath("$.length()").value(2))
             .andExpect(jsonPath("$[0].featureFlagId").value(featureFlagId.toString()))
             .andExpect(jsonPath("$[1].featureFlagId").value(featureFlagId.toString()))
-    }
-
-    @Test
-    fun `getAuditLogsByTeam should return audit logs for specific team`() {
-        val team = "backend-team"
-        val auditLogs = listOf(
-            createAuditLogDto(name = "flag1", team = team, operation = AuditOperation.CREATE),
-            createAuditLogDto(name = "flag2", team = team, operation = AuditOperation.UPDATE)
-        )
-
-        every { auditLogService.getAuditLogsByTeam(team) } returns auditLogs
-
-        mockMvc.perform(get("/api/audit-logs/team/$team"))
-            .andExpect(status().isOk)
-            .andExpect(jsonPath("$.length()").value(2))
-            .andExpect(jsonPath("$[0].team").value(team))
-            .andExpect(jsonPath("$[1].team").value(team))
-    }
-
-    @Test
-    fun `getAuditLogsByOperation should return audit logs for specific operation`() {
-        val operation = AuditOperation.DELETE
-        val auditLogs = listOf(
-            createAuditLogDto(name = "flag1", operation = operation),
-            createAuditLogDto(name = "flag2", operation = operation)
-        )
-
-        every { auditLogService.getAuditLogsByOperation(operation) } returns auditLogs
-
-        mockMvc.perform(get("/api/audit-logs/operation/DELETE"))
-            .andExpect(status().isOk)
-            .andExpect(jsonPath("$.length()").value(2))
-            .andExpect(jsonPath("$[0].operation").value("DELETE"))
-            .andExpect(jsonPath("$[1].operation").value("DELETE"))
     }
 
     @Test
