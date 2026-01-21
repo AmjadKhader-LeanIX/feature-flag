@@ -549,12 +549,23 @@ class FeatureFlagService(
     /**
      * Get count of enabled workspaces grouped by region for a feature flag
      */
-    fun getWorkspaceCountsByRegion(featureFlagId: UUID): Map<String, Long> {
+    fun getWorkspaceCountsByRegion(featureFlagId: UUID): List<com.featureflag.dto.RegionWorkspaceCountDto> {
         featureFlagRepository.findById(featureFlagId)
             .orElseThrow { ResourceNotFoundException("Feature flag not found with id: $featureFlagId") }
 
-        val regionCounts = workspaceFeatureFlagRepository.countEnabledWorkspacesByRegion(featureFlagId)
-        return regionCounts.associate { it.getRegion() to it.getCount() }
+        val enabledCounts = workspaceFeatureFlagRepository.countEnabledWorkspacesByRegion(featureFlagId)
+            .associate { it.getRegion() to it.getCount() }
+
+        val totalCounts = workspaceRepository.countTotalWorkspacesByRegion()
+            .associate { it.getRegion() to it.getCount() }
+
+        return totalCounts.map { (region, total) ->
+            com.featureflag.dto.RegionWorkspaceCountDto(
+                region = region,
+                enabledCount = enabledCounts[region] ?: 0,
+                totalCount = total
+            )
+        }.sortedBy { it.region }
     }
 
     private fun FeatureFlag.toDto(): FeatureFlagDto {

@@ -450,6 +450,26 @@
           </p>
         </div>
 
+        <!-- Region Breakdown -->
+        <div v-if="regionCounts.length > 0 && !enabledWorkspacesSearch" class="bg-neutral-50 border border-neutral-200 rounded-fiori-lg p-4">
+          <h4 class="text-sm font-semibold text-neutral-700 mb-3 flex items-center gap-2">
+            <MapPin :size="16" />
+            Enabled by Region
+          </h4>
+          <div class="flex flex-wrap gap-3">
+            <div
+              v-for="regionCount in regionCounts"
+              :key="regionCount.region"
+              class="flex items-center gap-2 px-3 py-2 bg-white border border-neutral-200 rounded-fiori-md"
+            >
+              <FioriBadge variant="warning" :text="regionCount.region" size="small" />
+              <span class="text-sm font-semibold text-neutral-900">
+                {{ regionCount.enabledCount }} out of {{ regionCount.totalCount }}
+              </span>
+            </div>
+          </div>
+        </div>
+
         <!-- No Results -->
         <div v-if="enabledWorkspaces.length === 0" class="text-center py-8">
           <Building2 :size="48" class="mx-auto text-neutral-400 mb-3" />
@@ -558,6 +578,7 @@ const enabledWorkspacesPage = ref(0)
 const totalEnabledWorkspaces = ref(0)
 const isLoadingMoreEnabledWorkspaces = ref(false)
 const hasMoreEnabledWorkspaces = ref(true)
+const regionCounts = ref([])
 
 const workspaceFlags = ref([])
 const loadingWorkspaceFlags = ref(false)
@@ -800,6 +821,15 @@ const loadEnabledWorkspaces = async (flag, reset = true) => {
       loadingEnabledWorkspaces.value = true
       enabledWorkspacesPage.value = 0
       enabledWorkspaces.value = []
+
+      // Load region counts when first opening the modal
+      try {
+        const counts = await apiService.getWorkspaceCountsByRegion(flag.id)
+        regionCounts.value = counts || []
+      } catch (err) {
+        console.error('Failed to load region counts:', err)
+        regionCounts.value = []
+      }
     }
 
     const response = await apiService.getEnabledWorkspacesForFeatureFlag(

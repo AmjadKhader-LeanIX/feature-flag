@@ -1239,10 +1239,10 @@ class FeatureFlagServiceTest {
     // ==================== getWorkspaceCountsByRegion ====================
 
     @Test
-    fun `getWorkspaceCountsByRegion should return counts grouped by region`() {
+    fun `getWorkspaceCountsByRegion should return counts with enabled and total per region`() {
         val flagId = UUID.randomUUID()
         val flag = createFeatureFlag("flag1", "team1", id = flagId)
-        val regionCounts = listOf(
+        val enabledCounts = listOf(
             object : com.featureflag.repository.WorkspaceFeatureFlagRepository.RegionCount {
                 override fun getRegion() = "WESTEUROPE"
                 override fun getCount() = 5L
@@ -1252,29 +1252,128 @@ class FeatureFlagServiceTest {
                 override fun getCount() = 3L
             }
         )
+        val totalCounts = listOf(
+            object : com.featureflag.repository.WorkspaceRepository.RegionCount {
+                override fun getRegion() = "WESTEUROPE"
+                override fun getCount() = 10L
+            },
+            object : com.featureflag.repository.WorkspaceRepository.RegionCount {
+                override fun getRegion() = "EASTUS"
+                override fun getCount() = 8L
+            }
+        )
 
         every { featureFlagRepository.findById(flagId) } returns Optional.of(flag)
-        every { workspaceFeatureFlagRepository.countEnabledWorkspacesByRegion(flagId) } returns regionCounts
+        every { workspaceFeatureFlagRepository.countEnabledWorkspacesByRegion(flagId) } returns enabledCounts
+        every { workspaceRepository.countTotalWorkspacesByRegion() } returns totalCounts
 
         val result = featureFlagService.getWorkspaceCountsByRegion(flagId)
 
         assertEquals(2, result.size)
-        assertEquals(5L, result["WESTEUROPE"])
-        assertEquals(3L, result["EASTUS"])
+
+        val westEurope = result.find { it.region == "WESTEUROPE" }
+        assertNotNull(westEurope)
+        assertEquals(5L, westEurope!!.enabledCount)
+        assertEquals(10L, westEurope.totalCount)
+
+        val eastUs = result.find { it.region == "EASTUS" }
+        assertNotNull(eastUs)
+        assertEquals(3L, eastUs!!.enabledCount)
+        assertEquals(8L, eastUs.totalCount)
+
         verify { workspaceFeatureFlagRepository.countEnabledWorkspacesByRegion(flagId) }
+        verify { workspaceRepository.countTotalWorkspacesByRegion() }
     }
 
     @Test
-    fun `getWorkspaceCountsByRegion should return empty map when no enabled workspaces`() {
+    fun `getWorkspaceCountsByRegion should return zero enabled count when no workspaces enabled in region`() {
+        val flagId = UUID.randomUUID()
+        val flag = createFeatureFlag("flag1", "team1", id = flagId)
+        val enabledCounts = listOf(
+            object : com.featureflag.repository.WorkspaceFeatureFlagRepository.RegionCount {
+                override fun getRegion() = "WESTEUROPE"
+                override fun getCount() = 5L
+            }
+        )
+        val totalCounts = listOf(
+            object : com.featureflag.repository.WorkspaceRepository.RegionCount {
+                override fun getRegion() = "WESTEUROPE"
+                override fun getCount() = 10L
+            },
+            object : com.featureflag.repository.WorkspaceRepository.RegionCount {
+                override fun getRegion() = "EASTUS"
+                override fun getCount() = 8L
+            }
+        )
+
+        every { featureFlagRepository.findById(flagId) } returns Optional.of(flag)
+        every { workspaceFeatureFlagRepository.countEnabledWorkspacesByRegion(flagId) } returns enabledCounts
+        every { workspaceRepository.countTotalWorkspacesByRegion() } returns totalCounts
+
+        val result = featureFlagService.getWorkspaceCountsByRegion(flagId)
+
+        assertEquals(2, result.size)
+
+        val westEurope = result.find { it.region == "WESTEUROPE" }
+        assertNotNull(westEurope)
+        assertEquals(5L, westEurope!!.enabledCount)
+        assertEquals(10L, westEurope.totalCount)
+
+        val eastUs = result.find { it.region == "EASTUS" }
+        assertNotNull(eastUs)
+        assertEquals(0L, eastUs!!.enabledCount)  // No enabled workspaces in EASTUS
+        assertEquals(8L, eastUs.totalCount)
+    }
+
+    @Test
+    fun `getWorkspaceCountsByRegion should return empty list when no regions exist`() {
         val flagId = UUID.randomUUID()
         val flag = createFeatureFlag("flag1", "team1", id = flagId)
 
         every { featureFlagRepository.findById(flagId) } returns Optional.of(flag)
         every { workspaceFeatureFlagRepository.countEnabledWorkspacesByRegion(flagId) } returns emptyList()
+        every { workspaceRepository.countTotalWorkspacesByRegion() } returns emptyList()
 
         val result = featureFlagService.getWorkspaceCountsByRegion(flagId)
 
         assertTrue(result.isEmpty())
+    }
+
+    @Test
+    fun `getWorkspaceCountsByRegion should sort results by region name`() {
+        val flagId = UUID.randomUUID()
+        val flag = createFeatureFlag("flag1", "team1", id = flagId)
+        val enabledCounts = listOf(
+            object : com.featureflag.repository.WorkspaceFeatureFlagRepository.RegionCount {
+                override fun getRegion() = "WESTEUROPE"
+                override fun getCount() = 5L
+            }
+        )
+        val totalCounts = listOf(
+            object : com.featureflag.repository.WorkspaceRepository.RegionCount {
+                override fun getRegion() = "WESTEUROPE"
+                override fun getCount() = 10L
+            },
+            object : com.featureflag.repository.WorkspaceRepository.RegionCount {
+                override fun getRegion() = "EASTUS"
+                override fun getCount() = 8L
+            },
+            object : com.featureflag.repository.WorkspaceRepository.RegionCount {
+                override fun getRegion() = "CANADACENTRAL"
+                override fun getCount() = 6L
+            }
+        )
+
+        every { featureFlagRepository.findById(flagId) } returns Optional.of(flag)
+        every { workspaceFeatureFlagRepository.countEnabledWorkspacesByRegion(flagId) } returns enabledCounts
+        every { workspaceRepository.countTotalWorkspacesByRegion() } returns totalCounts
+
+        val result = featureFlagService.getWorkspaceCountsByRegion(flagId)
+
+        assertEquals(3, result.size)
+        assertEquals("CANADACENTRAL", result[0].region)
+        assertEquals("EASTUS", result[1].region)
+        assertEquals("WESTEUROPE", result[2].region)
     }
 
     // ==================== Helper Methods ====================

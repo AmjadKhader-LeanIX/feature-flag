@@ -6,12 +6,10 @@ spring:
   jpa:
     hibernate:
       ddl-auto: validate
-    show-sql: ${SPRING_JPA_SHOW_SQL:true}
     properties:
       hibernate:
         dialect: org.hibernate.dialect.PostgreSQLDialect
         format_sql: true
-        # Hibernate batch settings for performance
         jdbc:
           batch_size: 20
         order_inserts: true

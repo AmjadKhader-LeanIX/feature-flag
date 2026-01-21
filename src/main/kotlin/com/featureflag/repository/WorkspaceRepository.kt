@@ -16,4 +16,13 @@ interface WorkspaceRepository : JpaRepository<Workspace, UUID> {
     // Search workspaces by name or region with pagination
     @Query("SELECT w FROM Workspace w WHERE LOWER(w.name) LIKE LOWER(CONCAT('%', :searchTerm, '%')) OR LOWER(CAST(w.region AS string)) LIKE LOWER(CONCAT('%', :searchTerm, '%'))")
     fun searchWorkspaces(@Param("searchTerm") searchTerm: String, pageable: Pageable): Page<Workspace>
+
+    // Count total workspaces by region
+    @Query("SELECT w.region as region, COUNT(w) as count FROM Workspace w WHERE w.region IS NOT NULL GROUP BY w.region")
+    fun countTotalWorkspacesByRegion(): List<RegionCount>
+
+    interface RegionCount {
+        fun getRegion(): String
+        fun getCount(): Long
+    }
 }
